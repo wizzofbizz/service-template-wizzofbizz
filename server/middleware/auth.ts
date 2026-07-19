@@ -1,5 +1,6 @@
 
 import { Request, Response, NextFunction } from "express";
+import { getCurrentBusinessId } from "../current-business";
 
 // Extend Express session types
 declare module 'express-session' {
@@ -44,25 +45,36 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 /**
- * attachBusinessContext - Adds user context to request
- * Must be used after requireAuth middleware
+ * attachBusinessContext - Adds user context to the request.
+ * Must be used after requireAuth middleware.
+ *
+ * Single-business note: this is the one choke point where business scope is
+ * decided. Rather than reading a tenant id off the session, it pins every
+ * request to the single configured business. Route handlers downstream keep
+ * using req.user.businessId exactly as before, so they need no changes.
  */
-export function attachBusinessContext(req: Request, res: Response, next: NextFunction) {
-  // For OAuth users, req.user is already populated by Passport's deserializeUser
-  if (req.user) {
-    return next();
+export async function attachBusinessContext(req: Request, res: Response, next: NextFunction) {
+  try {
+    const businessId = await getCurrentBusinessId();
+
+    if (req.user) {
+      // Passport populated req.user; ensure it carries the pinned business.
+      req.user.businessId = businessId;
+      return next();
+    }
+
+    if (req.session?.userId) {
+      req.user = {
+        id: req.session.userId,
+        businessId,
+        role: req.session.role || 'owner'
+      };
+    }
+
+    next();
+  } catch (error) {
+    next(error);
   }
-  
-  // For session-based auth (email/password)
-  if (req.session?.userId) {
-    req.user = {
-      id: req.session.userId,
-      businessId: req.session.businessId || '',
-      role: req.session.role || 'owner'
-    };
-  }
-  
-  next();
 }
 
 /**
