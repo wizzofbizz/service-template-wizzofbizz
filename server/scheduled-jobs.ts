@@ -1,3 +1,4 @@
+import { getPublicBaseUrl } from "./config";
 
 import { storage } from "./storage";
 import { processEmailQueue } from "./email";
@@ -75,11 +76,7 @@ async function processQuoteFollowups(business: Business) {
         }
 
         // Generate appropriate link
-        const devDomain = process.env.REPLIT_DEV_DOMAIN;
-        const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-        const replitDomain = devDomain || prodDomain || 'localhost:5000';
-        const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-        const quoteLink = `${protocol}://${replitDomain}/quotes/${quote.id}/view?token=${quote.publicToken}`;
+        const quoteLink = `${getPublicBaseUrl()}/quotes/${quote.id}/view?token=${quote.publicToken}`;
         
         const { sendWhatsAppNotification } = await import('./whatsapp-notification');
         
@@ -279,11 +276,7 @@ async function processDepositReminders(business: Business) {
         const depositAmount = depositInvoice.depositAmount || depositInvoice.totalAmount;
 
         // Build payment link
-        const devDomain = process.env.REPLIT_DEV_DOMAIN;
-        const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-        const replitDomain = devDomain || prodDomain || 'localhost:5000';
-        const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-        const paymentLink = `${protocol}://${replitDomain}/invoices/${depositInvoice.id}/view?token=${depositInvoice.publicToken}`;
+        const paymentLink = `${getPublicBaseUrl()}/invoices/${depositInvoice.id}/view?token=${depositInvoice.publicToken}`;
 
         // WhatsApp reminder
         const { sendWhatsAppNotification } = await import('./whatsapp-notification');
@@ -438,7 +431,7 @@ async function processPaymentReminders(business: Business) {
         if (!contact?.email) continue;
 
         // Send payment reminder via WhatsApp or Email
-        const invoiceLink = `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000'}/invoices/${invoice.id}/view?token=${invoice.publicToken || invoice.id}`;
+        const invoiceLink = `${getPublicBaseUrl()}/invoices/${invoice.id}/view?token=${invoice.publicToken || invoice.id}`;
         
         if (
           contact.whatsappOptIn && 

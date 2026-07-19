@@ -1111,7 +1111,7 @@ export default function SettingsPage() {
                         </tr>
                         <tr>
                           <td className="p-2">Setup complexity</td>
-                          <td className="p-2">✓ Built-in (Replit)</td>
+                          <td className="p-2">✓ Built-in</td>
                           <td className="p-2">Requires API key</td>
                         </tr>
                         <tr>
@@ -1794,7 +1794,7 @@ export default function SettingsPage() {
                 <div className="p-3 bg-gray-50 rounded-md">
                   <p className="text-sm font-medium">Twilio WhatsApp Business API</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Messages cost R0.40 each • Managed via Replit integration
+                    Messages are billed by your WhatsApp provider
                   </p>
                 </div>
               </div>

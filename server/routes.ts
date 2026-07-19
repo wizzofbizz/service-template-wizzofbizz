@@ -2988,7 +2988,66 @@ ${aiResult.reasoning}`,
     }
   });
 
-  // Serve Object Storage images
+  /**
+   * Receives an uploaded image and stores it on disk.
+   *
+   * The Replit implementation handed the browser a pre-signed cloud URL and
+   * uploaded directly to storage. Self-hosted, the file comes through here.
+   */
+  app.post("/api/uploads", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
+    try {
+      const Busboy = (await import('busboy')).default;
+      const bb = Busboy({
+        headers: req.headers,
+        limits: { fileSize: 10 * 1024 * 1024, files: 1 }, // 10 MB, one file
+      });
+
+      let responded = false;
+      const fail = (status: number, message: string) => {
+        if (responded) return;
+        responded = true;
+        res.status(status).json({ message });
+      };
+
+      bb.on('file', (_name, file, info) => {
+        const chunks: Buffer[] = [];
+        let tooLarge = false;
+
+        file.on('data', (chunk: Buffer) => chunks.push(chunk));
+        file.on('limit', () => {
+          tooLarge = true;
+          fail(413, "That image is too large. Please use a file under 10 MB.");
+        });
+
+        file.on('end', async () => {
+          if (tooLarge || responded) return;
+          try {
+            const storageService = new ObjectStorageService();
+            const objectPath = await storageService.storeUpload(
+              Buffer.concat(chunks),
+              info.filename || 'upload.jpg'
+            );
+            responded = true;
+            res.json({ url: objectPath, uploadURL: objectPath });
+          } catch (error: any) {
+            fail(400, error?.message || "Upload failed.");
+          }
+        });
+      });
+
+      bb.on('error', () => fail(400, "Upload failed."));
+      bb.on('finish', () => {
+        if (!responded) fail(400, "No file was uploaded.");
+      });
+
+      req.pipe(bb);
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ message: "Upload failed." });
+    }
+  });
+
+  // Serve uploaded images
   app.get("/objects/*", async (req: Request, res: Response) => {
     try {
       const objectStorageService = new ObjectStorageService();

@@ -272,16 +272,16 @@ export const insertBusinessSchema = createInsertSchema(businesses).omit({
 export type InsertBusiness = z.infer<typeof insertBusinessSchema>;
 export type Business = typeof businesses.$inferSelect;
 
-// SESSION STORAGE (Required for Replit Auth)
+// SESSION STORAGE (express-session, backed by connect-pg-simple)
 export const sessions = pgTable("sessions", {
   sid: varchar("sid").primaryKey(),
   sess: jsonb("sess").notNull(),
   expire: timestamp("expire").notNull(),
 });
 
-// 2. USERS (Authentication via Replit Auth - supports Google, GitHub, X, Apple, email/password)
+// 2. USERS (email + password, with optional Google OAuth)
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`), // Replit user ID (string like '927070657')
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`), // User id (uuid)
   businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }), // Nullable for onboarding flow
   email: varchar("email", { length: 255 }).unique(), // Can be null (some login methods don't have email)
   passwordHash: text("password_hash"), // For email/password auth (null for OAuth users)
@@ -300,7 +300,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Upsert schema for Replit Auth (used by replitAuth.ts)
+// Upsert schema used by the Google OAuth sign-in flow
 export const upsertUserSchema = createInsertSchema(users).pick({
   id: true,
   email: true,

@@ -58,7 +58,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>; // Required for Replit Auth
+  upsertUser(user: UpsertUser): Promise<User>; // Used by Google OAuth sign-in
 
   // Contacts
   getContact(id: string, businessId: string): Promise<Contact | undefined>;

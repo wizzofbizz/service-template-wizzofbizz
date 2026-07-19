@@ -53,11 +53,11 @@ async function notifySessionExpired(businessId: string, sessionName: string, ses
         <h2>WhatsApp Session Disconnected</h2>
         <p>Your WhatsApp session "${sessionName}" has been disconnected.</p>
         <p><strong>Action Required:</strong> Please reconnect your WhatsApp account to continue sending automated messages.</p>
-        <p><a href="https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:5000'}/dashboard/settings?tab=whatsapp" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reconnect WhatsApp</a></p>
+        <p><a href="${getPublicBaseUrl()}/dashboard/settings?tab=whatsapp" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reconnect WhatsApp</a></p>
         <p>Messages will be queued until you reconnect.</p>
         <p>- ${business.businessName}</p>
       `,
-      bodyText: `WhatsApp Session Disconnected\n\nYour WhatsApp session "${sessionName}" has been disconnected.\n\nAction Required: Please reconnect your WhatsApp account to continue sending automated messages.\n\nReconnect at: https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:5000'}/dashboard/settings?tab=whatsapp\n\nMessages will be queued until you reconnect.\n\n- ${business.businessName}`,
+      bodyText: `WhatsApp Session Disconnected\n\nYour WhatsApp session "${sessionName}" has been disconnected.\n\nAction Required: Please reconnect your WhatsApp account to continue sending automated messages.\n\nReconnect at: ${getPublicBaseUrl()}/dashboard/settings?tab=whatsapp\n\nMessages will be queued until you reconnect.\n\n- ${business.businessName}`,
       status: 'pending',
     });
 
