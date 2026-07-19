@@ -15,6 +15,10 @@ async function seed() {
 
   console.log("🌱 Seeding database...");
 
+  // The admin sign-in address and the starting business details come from the
+  // environment, so a new client can be stood up without editing this file.
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL || "demo@example.com").trim().toLowerCase();
+
   // Check if demo business already exists
   const existingBusiness = await db.select()
     .from(schema.businesses)
@@ -29,16 +33,16 @@ async function seed() {
   } else {
     // Create demo business
     const [newBusiness] = await db.insert(schema.businesses).values({
-      businessName: "Demo Professional Services",
+      businessName: process.env.SEED_BUSINESS_NAME || "Demo Professional Services",
       slug: "demo",
-      email: "demo@example.com",
-      phone: "+27 123 456 789",
-      industry: "Professional Services",
-      ownerName: "Demo Owner",
-      addressLine1: "123 Business Street",
-      city: "Cape Town",
-      province: "Western Cape",
-      postalCode: "8001",
+      email: process.env.SEED_BUSINESS_EMAIL || adminEmail,
+      phone: process.env.SEED_BUSINESS_PHONE || "+27 123 456 789",
+      industry: process.env.SEED_BUSINESS_INDUSTRY || "Professional Services",
+      ownerName: process.env.SEED_OWNER_NAME || "Demo Owner",
+      addressLine1: process.env.SEED_BUSINESS_ADDRESS || "123 Business Street",
+      city: process.env.SEED_BUSINESS_CITY || "Cape Town",
+      province: process.env.SEED_BUSINESS_PROVINCE || "Western Cape",
+      postalCode: process.env.SEED_BUSINESS_POSTCODE || "8001",
       businessDescription: "Quality professional services you can trust",
       websiteStatus: "published",
       subscriptionStatus: "active",
@@ -49,10 +53,10 @@ async function seed() {
     business = newBusiness;
   }
 
-  // Check if demo user already exists
+  // Check if the admin user already exists
   const existingUser = await db.select()
     .from(schema.users)
-    .where(eq(schema.users.email, "demo@example.com"))
+    .where(eq(schema.users.email, adminEmail))
     .limit(1);
 
   if (existingUser.length === 0) {
@@ -71,14 +75,18 @@ async function seed() {
     const passwordHash = await bcrypt.hash(seedPassword, 10);
     const [user] = await db.insert(schema.users).values({
       businessId: business.id,
-      email: "demo@example.com",
+      email: adminEmail,
       passwordHash,
-      firstName: "Demo",
-      lastName: "User",
+      firstName: process.env.SEED_ADMIN_FIRST_NAME || "Demo",
+      lastName: process.env.SEED_ADMIN_LAST_NAME || "User",
       role: "owner",
+      // Login rejects unverified addresses. The seeded owner is created by the
+      // operator, not by public signup, so there is nobody to click a
+      // verification link — without this the account cannot sign in at all.
+      emailVerified: true,
     }).returning();
 
-    console.log("✅ Created demo user:", user.email);
+    console.log("✅ Created admin user:", user.email);
   } else {
     console.log("ℹ️ Demo user already exists");
   }
