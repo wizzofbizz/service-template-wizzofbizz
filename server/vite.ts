@@ -41,6 +41,13 @@ export async function setupVite(app: Express, server: Server) {
   });
 
   app.use(vite.middlewares);
+
+  // Match production: an unmatched /api path is a missing endpoint, not a
+  // client route, so it must 404 rather than returning the SPA shell.
+  app.use("/api/*", (_req, res) => {
+    res.status(404).json({ message: "Not found" });
+  });
+
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
@@ -78,7 +85,15 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
+  // An unmatched /api path is a missing endpoint, not a client route. Without
+  // this it fell through to index.html and returned 200 with HTML, so a
+  // typo'd or removed endpoint looked like a success to any caller — and a
+  // fetch() would fail on JSON parsing rather than reporting a 404.
+  app.use("/api/*", (_req, res) => {
+    res.status(404).json({ message: "Not found" });
+  });
+
+  // Everything else is a client-side route: serve the SPA shell.
   app.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
