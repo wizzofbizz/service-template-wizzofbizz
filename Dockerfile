@@ -36,8 +36,17 @@ ARG VITE_ENABLE_WHATSAPP
 
 RUN npm run build
 
-# Drop dev dependencies from the tree we copy forward.
-RUN npm prune --omit=dev
+# Deliberately NOT pruning dev dependencies.
+#
+# DEPLOY.md tells the operator to run `npm run db:push` and `npm run db:seed`
+# inside this container for first-time setup, and those need drizzle-kit and
+# tsx — both dev dependencies. Pruning them produces an image that boots fine
+# but cannot create its own schema, which is a confusing failure to hit on a
+# fresh deploy.
+#
+# The cost is a larger image. The alternative (a separate migration image, or
+# moving those two to dependencies) is worth revisiting if image size becomes
+# a problem, but correctness of the documented setup path matters more here.
 
 
 # ---- Runtime stage -----------------------------------------------------------

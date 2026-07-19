@@ -1,0 +1,46 @@
+# Everything here is excluded from the Docker build context.
+#
+# node_modules matters most: without this exclusion, Windows-built native
+# modules (bcrypt in particular) get copied into a Linux image where they
+# cannot run, and `npm ci` in the Dockerfile may not replace them. The build
+# succeeds and the container then crashes at startup.
+#
+# It also keeps the context small — uploading hundreds of megabytes to the
+# Docker daemon on every build is slow for no benefit.
+
+node_modules
+**/node_modules
+
+# Built output — the image builds its own.
+dist
+client/dist
+.vite
+
+# Version control and editor state
+.git
+.gitignore
+.vscode
+.idea
+
+# Secrets must never enter an image layer.
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+service-account*.json
+
+# Local data
+uploads
+tmp
+*.log
+coverage
+
+# Documentation is not needed at runtime.
+*.md
+!README.md
+docs
+
+# OS noise
+.DS_Store
+Thumbs.db
