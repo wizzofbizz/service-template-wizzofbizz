@@ -21,6 +21,21 @@ interface CalendarHours {
   sunday: DayHours | null;
 }
 
+/**
+ * Formats a Date as YYYY-MM-DD in LOCAL time.
+ *
+ * toISOString() must not be used for calendar keys: it converts to UTC first,
+ * so in any positive-offset timezone (e.g. SAST, UTC+2) a local midnight
+ * becomes 22:00 the PREVIOUS day, and every availability key lands on the
+ * wrong date.
+ */
+function toLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export class AvailabilityService {
   /**
    * Get available time slots for quote visits
@@ -38,7 +53,7 @@ export class AvailabilityService {
     const currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = toLocalDateKey(currentDate);
       const dayName = this.getDayName(currentDate);
       const dayHours = calendarHours[dayName];
 
@@ -114,7 +129,7 @@ export class AvailabilityService {
     existingJobs: Job[],
     bufferMinutes: number
   ): boolean {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toLocalDateKey(date);
 
     const slotStartMinutes = this.timeToMinutes(slotStart);
     const slotEndMinutes = this.timeToMinutes(slotEnd);

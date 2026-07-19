@@ -37,6 +37,7 @@ export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "sent", "pai
 export const invoiceTypeEnum = pgEnum("invoice_type", ["deposit", "final", "standard"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "bank_transfer", "other"]);
 export const depositCancellationModeEnum = pgEnum("deposit_cancellation_mode", ["auto", "manual"]);
+export const bookingModeEnum = pgEnum("booking_mode", ["quote_first", "direct", "quote_only"]);
 
 // Deposit Policies Table (Phase 2 - Deposit System)
 export const depositPolicies = pgTable("deposit_policies", {
@@ -146,6 +147,12 @@ export const businesses = pgTable("businesses", {
   depositReminderHours: jsonb("deposit_reminder_hours").$type<number[]>().default([48, 24, 12]),
   requireDepositByDefault: boolean("require_deposit_by_default").default(false),
   defaultDepositPercentage: decimal("default_deposit_percentage", { precision: 5, scale: 2 }).default("30.00"),
+
+  // How customers book, set by the owner in Settings -> Booking:
+  //   quote_first  describe the job -> quote -> accept -> book (trades)
+  //   direct       pick a service -> pick a slot (salon, tutor, physio)
+  //   quote_only   request a quote, no online booking
+  bookingMode: bookingModeEnum("booking_mode").default("quote_first"),
 
   // Online payments (PayFast).
   // The owner switches this on from Dashboard -> Settings -> Payments; the

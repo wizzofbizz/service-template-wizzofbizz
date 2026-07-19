@@ -9,7 +9,7 @@ import { RequireAuth } from "./components/RequireAuth";
 
 // Public site (the client's own business website)
 import BusinessLandingPage from "@/pages/business-landing";
-import PublicQuoteRequest from "@/pages/public-quote-request";
+import BookingRouter from "@/pages/booking-router";
 import PublicQuoteView from "@/pages/public-quote-view";
 import PublicInvoiceView from "@/pages/public-invoice-view";
 import { PaymentSuccess, PaymentCancelled } from "@/pages/payment-result";
@@ -65,8 +65,8 @@ function Router() {
       <Switch>
         {/* Public site */}
         <Route path="/" component={BusinessLandingPage} />
-        <Route path="/quote" component={PublicQuoteRequest} />
-        <Route path="/book" component={PublicQuoteRequest} />
+        <Route path="/quote" component={BookingRouter} />
+        <Route path="/book" component={BookingRouter} />
         <Route path="/quotes/:id/view" component={PublicQuoteView} />
         <Route path="/invoices/:id/view" component={PublicInvoiceView} />
         <Route path="/payment/success" component={PaymentSuccess} />

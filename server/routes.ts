@@ -2302,6 +2302,232 @@ ${aiResult.reasoning}`,
   // Credentials never touch the database or the admin UI.
   // ============================================================================
 
+  // ============================================================================
+  // DIRECT BOOKING (booking_mode = "direct")
+  //
+  // Lets a customer pick a service and a slot without going through quoting —
+  // the right flow when the price and duration are known up front (salon,
+  // tutor, physio). Quote-driven booking lives at
+  // POST /api/public/quotes/:id/book and is unaffected.
+  // ============================================================================
+
+  /** Tells the public site which booking flow to render. */
+  app.get('/api/public/booking-mode', async (_req: Request, res: Response) => {
+    try {
+      const business = await getCurrentBusiness();
+      res.json({ bookingMode: business.bookingMode || 'quote_first' });
+    } catch (error) {
+      console.error("Booking mode error:", error);
+      res.json({ bookingMode: 'quote_first' });
+    }
+  });
+
+  app.post('/api/public/book', async (req: Request, res: Response) => {
+    try {
+      const { serviceId, date, time, notes, contactInfo, address } = req.body;
+
+      if (!serviceId || !date || !time) {
+        return res.status(400).json({ message: "Service, date and time are required." });
+      }
+      if (!contactInfo?.fullName || (!contactInfo?.email && !contactInfo?.phone)) {
+        return res.status(400).json({
+          message: "Your name and either an email address or phone number are required.",
+        });
+      }
+
+      const business = await getCurrentBusiness();
+
+      // Direct booking is only available when the owner has selected it.
+      if (business.bookingMode !== 'direct') {
+        return res.status(403).json({
+          message: "Direct booking is not enabled. Please request a quote instead.",
+        });
+      }
+
+      const service = await storage.getService(serviceId, business.id);
+      if (!service || !service.isActive) {
+        return res.status(404).json({ message: "That service is not available." });
+      }
+
+      // Same availability rules as quote-driven booking.
+      // Build the date in LOCAL time: `new Date("2026-07-22")` parses as UTC,
+      // which shifts the day in any positive-offset timezone.
+      const [y, m, d] = String(date).split('-').map(Number);
+      const [hours, minutes] = String(time).split(':').map(Number);
+      if ([y, m, d, hours, minutes].some(Number.isNaN)) {
+        return res.status(400).json({ message: "Invalid date or time." });
+      }
+      const scheduledDate = new Date(y, m - 1, d, hours, minutes, 0, 0);
+
+      const now = new Date();
+      const minimumNoticeHours = business.minimumNoticeHours || 24;
+      const earliestAllowed = new Date(now);
+      earliestAllowed.setHours(earliestAllowed.getHours() + minimumNoticeHours);
+
+      if (scheduledDate < earliestAllowed) {
+        return res.status(400).json({
+          message: `Bookings must be made at least ${minimumNoticeHours} hours in advance. Please choose a later time.`,
+        });
+      }
+
+      const bookingWindowDays = business.bookingWindowDays || 14;
+      const latestAllowed = new Date(now);
+      latestAllowed.setDate(latestAllowed.getDate() + bookingWindowDays);
+      latestAllowed.setHours(23, 59, 59, 999);
+
+      if (scheduledDate > latestAllowed) {
+        return res.status(400).json({
+          message: `Bookings can only be made up to ${bookingWindowDays} days ahead. Please choose an earlier date.`,
+        });
+      }
+
+      // Re-check the slot server-side: the customer's list may be stale, and
+      // two people can pick the same slot at the same time.
+      const existingJobs = await storage.getJobsByBusinessId(business.id);
+      const calendarHours = (business.calendarHours as any) || {
+        monday: { start: "09:00", end: "17:00" },
+        tuesday: { start: "09:00", end: "17:00" },
+        wednesday: { start: "09:00", end: "17:00" },
+        thursday: { start: "09:00", end: "17:00" },
+        friday: { start: "09:00", end: "17:00" },
+        saturday: null,
+        sunday: null,
+      };
+
+      // Parse as LOCAL midnight. `new Date("2026-07-22")` is parsed as UTC, so
+      // in a positive-offset timezone setHours(0,0,0,0) rolls back to the
+      // previous day and the availability lookup misses entirely.
+      const [yy, mm, dd] = String(date).split('-').map(Number);
+      const dayStart = new Date(yy, mm - 1, dd, 0, 0, 0, 0);
+      const dayEnd = new Date(yy, mm - 1, dd, 23, 59, 59, 999);
+
+      const serviceDuration = service.durationMinutes || business.quoteVisitDurationMinutes || 60;
+
+      const { AvailabilityService } = await import('./availability-service');
+      const availability = AvailabilityService.getAvailableSlots(
+        calendarHours,
+        existingJobs,
+        serviceDuration,
+        business.bufferBetweenVisitsMinutes || 0,
+        business.timeSlotIntervalMinutes || 30,
+        dayStart,
+        dayEnd
+      );
+
+      const slotsForDay: string[] = availability[date] || [];
+      if (!slotsForDay.includes(time)) {
+        return res.status(409).json({
+          message: "Sorry, that time is no longer available. Please choose another slot.",
+        });
+      }
+
+      // Reuse an existing contact so repeat customers do not create duplicate
+      // CRM records (same matching rule as the quote request flow).
+      const contacts = await storage.getContactsByBusinessId(business.id);
+      let contact =
+        (contactInfo.email
+          ? contacts.find((c) => c.email?.toLowerCase() === String(contactInfo.email).toLowerCase())
+          : undefined) ||
+        (contactInfo.phone
+          ? contacts.find((c) => c.phone === contactInfo.phone)
+          : undefined);
+
+      if (!contact) {
+        contact = await storage.createContact({
+          businessId: business.id,
+          fullName: contactInfo.fullName,
+          email: contactInfo.email || null,
+          phone: contactInfo.phone || null,
+          address: address || null,
+          contactType: 'customer',
+          leadSource: 'website',
+        } as any);
+        await ActivityLogger.contactCreated(business.id, contact!.id);
+      }
+
+      const durationMinutes = serviceDuration;
+      const endTime = new Date(scheduledDate);
+      endTime.setMinutes(endTime.getMinutes() + durationMinutes);
+      const scheduledEndTime =
+        `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}`;
+
+      const jobNumber = await generateJobNumber(business.id);
+
+      const job = await storage.createJob({
+        businessId: business.id,
+        contactId: contact!.id,
+        jobNumber,
+        title: service.serviceName,
+        description: notes || null,
+        serviceType: service.serviceName,
+        status: 'scheduled',
+        scheduledDate: date,
+        scheduledStartTime: time,
+        scheduledEndTime,
+        address: address || contact!.address || null,
+        estimatedCost: service.basePrice || null,
+      } as any);
+
+      await ActivityLogger.bookingRequested(
+        business.id,
+        job.id,
+        contact!.id,
+        { serviceId, date, time, source: 'direct_booking' },
+        req.ip
+      );
+
+      // Notifications are best-effort: a confirmed booking must never fail
+      // because an optional email integration is unconfigured or down.
+      if (contact!.email) {
+        try {
+          const when = new Date(`${date}T${time}`).toLocaleString('en-ZA', {
+            weekday: 'long', day: 'numeric', month: 'long',
+            hour: '2-digit', minute: '2-digit',
+          });
+
+          await storage.createEmailQueueItem({
+            businessId: business.id,
+            toEmail: contact!.email,
+            toName: contact!.fullName,
+            subject: `Booking confirmed — ${service.serviceName}`,
+            bodyHtml:
+              `<p>Hi ${contact!.fullName},</p>` +
+              `<p>Your booking is confirmed.</p>` +
+              `<p><strong>${service.serviceName}</strong><br>${when}</p>` +
+              (notes ? `<p>Your notes: ${notes}</p>` : '') +
+              `<p>Reference: ${job.jobNumber}</p>` +
+              `<p>${business.businessName}${business.phone ? ` · ${business.phone}` : ''}</p>`,
+            bodyText:
+              `Hi ${contact!.fullName},\n\nYour booking is confirmed.\n\n` +
+              `${service.serviceName}\n${when}\n\n` +
+              (notes ? `Your notes: ${notes}\n\n` : '') +
+              `Reference: ${job.jobNumber}\n\n${business.businessName}`,
+            status: 'pending',
+            relatedType: 'job',
+            relatedId: job.id,
+          } as any);
+        } catch (notifyError) {
+          console.error("Booking confirmation could not be queued:", notifyError);
+        }
+      }
+
+      res.status(201).json({
+        message: "Booking confirmed",
+        job: {
+          id: job.id,
+          jobNumber: job.jobNumber,
+          title: job.title,
+          scheduledDate: job.scheduledDate,
+          scheduledStartTime: job.scheduledStartTime,
+          scheduledEndTime: job.scheduledEndTime,
+        },
+      });
+    } catch (error) {
+      console.error("Direct booking error:", error);
+      res.status(500).json({ message: "Unable to complete your booking. Please try again." });
+    }
+  });
+
   /**
    * Admin-only: whether the SERVER has PayFast credentials, so Settings can
    * explain that payments will not go live until they are added. Reports
@@ -2611,7 +2837,7 @@ ${aiResult.reasoning}`,
   });
 
   // Landing page editor API endpoints
-  app.get("/api/businesses/:businessId/landing-page-sections", requireAuth, async (req: Request, res: Response) => {
+  app.get("/api/businesses/:businessId/landing-page-sections", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
     try {
       const { businessId } = req.params;
       const user = req.user as any;
@@ -2682,7 +2908,7 @@ ${aiResult.reasoning}`,
     }
   });
 
-  app.post("/api/businesses/:businessId/landing-page-sections", requireAuth, async (req: Request, res: Response) => {
+  app.post("/api/businesses/:businessId/landing-page-sections", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
     try {
       const { businessId } = req.params;
       const user = req.user as any;
@@ -2719,7 +2945,7 @@ ${aiResult.reasoning}`,
   });
 
   // Get presigned upload URL for landing page gallery images
-  app.post("/api/businesses/:businessId/upload-image-url", requireAuth, async (req: Request, res: Response) => {
+  app.post("/api/businesses/:businessId/upload-image-url", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
     try {
       const { businessId } = req.params;
       const user = req.user as any;
@@ -2738,7 +2964,7 @@ ${aiResult.reasoning}`,
   });
 
   // Finalize image upload and set it on the landing page
-  app.post("/api/businesses/:businessId/image-uploaded", requireAuth, async (req: Request, res: Response) => {
+  app.post("/api/businesses/:businessId/image-uploaded", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
     try {
       const { businessId } = req.params;
       const user = req.user as any;
@@ -2776,7 +3002,7 @@ ${aiResult.reasoning}`,
     }
   });
 
-  app.put("/api/businesses/:businessId/landing-page-sections/:id", requireAuth, async (req: Request, res: Response) => {
+  app.put("/api/businesses/:businessId/landing-page-sections/:id", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
     try {
       const { businessId, id } = req.params;
       const user = req.user as any;
@@ -2794,7 +3020,7 @@ ${aiResult.reasoning}`,
     }
   });
 
-  app.delete("/api/businesses/:businessId/landing-page-sections/:section/:itemNumber", requireAuth, async (req: Request, res: Response) => {
+  app.delete("/api/businesses/:businessId/landing-page-sections/:section/:itemNumber", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
     try {
       const { businessId, section, itemNumber } = req.params;
       const user = req.user as any;
@@ -4461,7 +4687,7 @@ ${aiResult.reasoning}`,
   // ============================================================================
 
   // Get business profile
-  app.get("/api/business/profile", requireAuth, async (req: Request, res: Response) => {
+  app.get("/api/business/profile", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
     try {
       const user = req.user as any;
       if (!user.businessId) {
@@ -4615,7 +4841,7 @@ ${aiResult.reasoning}`,
   // ============================================================================
 
   // Business profile endpoint
-  app.get("/api/businesses/:id", requireAuth, async (req: Request, res: Response) => {
+  app.get("/api/businesses/:id", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
     try {
       // Only allow users to fetch their own business data
       if (req.user && req.params.id !== req.user.businessId) {
@@ -4634,7 +4860,10 @@ ${aiResult.reasoning}`,
   });
 
   // Update business endpoint (for onboarding progress)
-  app.patch("/api/businesses/:id", requireAuth, async (req: Request, res: Response) => {
+  // attachBusinessContext is required: without it req.user.businessId is never
+  // populated for session-authenticated users, so the ownership check below
+  // rejected every request and the whole Settings page failed to save.
+  app.patch("/api/businesses/:id", requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
     try {
       // Only allow users to update their own business
       if (!req.user || req.params.id !== req.user.businessId) {

@@ -13,7 +13,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { AddressAutocomplete, type AddressData } from "@/components/ui/address-autocomplete";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, AlertCircle, Plus, MessageSquare, CreditCard } from "lucide-react";
+import { DollarSign, AlertCircle, Plus, MessageSquare, CreditCard, Calendar as CalendarIcon } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -568,6 +568,7 @@ export default function SettingsPage() {
     whatsappOverageAllowed: business?.whatsappOverageAllowed || false,
     // Deposit Policy Fields
     requireDepositByDefault: business?.requireDepositByDefault || false,
+    bookingMode: business?.bookingMode || "quote_first",
     onlinePaymentsEnabled: business?.onlinePaymentsEnabled || false,
     acceptInvoicePayments: business?.acceptInvoicePayments !== false,
     acceptDepositPayments: business?.acceptDepositPayments !== false,
@@ -639,6 +640,7 @@ export default function SettingsPage() {
             <TabsTrigger value="calendar" className="whitespace-nowrap">Calendar</TabsTrigger>
             <TabsTrigger value="deposit" className="whitespace-nowrap">Deposit</TabsTrigger>
             <TabsTrigger value="whatsapp" className="whitespace-nowrap">WhatsApp</TabsTrigger>
+            <TabsTrigger value="booking" className="whitespace-nowrap">Booking</TabsTrigger>
             <TabsTrigger value="payments" className="whitespace-nowrap">Payments</TabsTrigger>
             <TabsTrigger value="account" className="whitespace-nowrap">Account</TabsTrigger>
           </TabsList>
@@ -1878,6 +1880,96 @@ export default function SettingsPage() {
                 style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
               >
                 {updateBusinessMutation.isPending ? "Saving..." : "Save WhatsApp Settings"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="booking" className="space-y-4" style={pageStyle}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5" />
+                How customers book
+              </CardTitle>
+              <CardDescription>
+                Choose the flow that matches how you price your work.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <RadioGroup
+                value={businessData.bookingMode || "quote_first"}
+                onValueChange={(value) => {
+                  setBusinessData({ ...businessData, bookingMode: value });
+                }}
+                className="space-y-4"
+              >
+                <label
+                  htmlFor="mode-direct"
+                  className="flex gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent/50"
+                >
+                  <RadioGroupItem value="direct" id="mode-direct" className="mt-1" data-testid="radio-mode-direct" />
+                  <div className="space-y-1">
+                    <p className="font-medium">Book straight away</p>
+                    <p className="text-sm text-muted-foreground">
+                      Customers pick a service and a time slot, and the booking is
+                      confirmed immediately. Best when your prices and appointment
+                      lengths are fixed — salons, tutors, physios, consultations.
+                    </p>
+                  </div>
+                </label>
+
+                <label
+                  htmlFor="mode-quote-first"
+                  className="flex gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent/50"
+                >
+                  <RadioGroupItem value="quote_first" id="mode-quote-first" className="mt-1" data-testid="radio-mode-quote-first" />
+                  <div className="space-y-1">
+                    <p className="font-medium">Quote first, then book</p>
+                    <p className="text-sm text-muted-foreground">
+                      Customers describe the job, receive a quote, and book a time
+                      once they accept it. Best when the price depends on the work —
+                      plumbers, electricians, builders.
+                    </p>
+                  </div>
+                </label>
+
+                <label
+                  htmlFor="mode-quote-only"
+                  className="flex gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent/50"
+                >
+                  <RadioGroupItem value="quote_only" id="mode-quote-only" className="mt-1" data-testid="radio-mode-quote-only" />
+                  <div className="space-y-1">
+                    <p className="font-medium">Quotes only</p>
+                    <p className="text-sm text-muted-foreground">
+                      Customers request a quote, and you arrange the timing yourself.
+                      No online calendar booking.
+                    </p>
+                  </div>
+                </label>
+              </RadioGroup>
+
+              {businessData.bookingMode === "direct" && (
+                <div className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900">
+                  <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium">Check your services first</p>
+                    <p className="mt-1">
+                      With instant booking, customers see each service's price and
+                      length before they book. Make sure every active service in
+                      Services has both set correctly.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={() => updateBusinessMutation.mutate(businessData)}
+                disabled={updateBusinessMutation.isPending}
+                style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
+                data-testid="button-save-booking-mode"
+              >
+                {updateBusinessMutation.isPending ? "Saving..." : "Save Booking Settings"}
               </Button>
             </CardContent>
           </Card>
