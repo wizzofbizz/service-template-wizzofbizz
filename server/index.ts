@@ -21,8 +21,6 @@ app.use(express.urlencoded({
 }));
 
 // Import and register domain routing middleware BEFORE all other routes
-import { domainRoutingMiddleware } from "./middleware/domain-routing";
-app.use(domainRoutingMiddleware);
 
 app.use((req, res, next) => {
   const start = Date.now();

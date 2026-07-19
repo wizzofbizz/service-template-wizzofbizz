@@ -598,10 +598,6 @@ export async function runEmailReminders() {
     // Run WaSender session health checks
     await checkWhatsAppSessionHealth();
     
-    // Run periodic DNS verification for pending domains
-    const { dnsVerificationService } = await import('./dns-verification-service');
-    await dnsVerificationService.verifyPendingDomains();
-    
     // Get all active businesses
     const businesses = await storage.getAllUsers();
     const uniqueBusinessIds = [...new Set(businesses.map(u => u.businessId).filter(Boolean))];

@@ -27,12 +27,10 @@ const navigationItems = [
   { icon: CalendarIcon, label: "Calendar", href: "/dashboard/calendar" },
   { icon: Receipt, label: "Invoices", href: "/dashboard/invoices" },
   { icon: Wrench, label: "Services", href: "/dashboard/services" },
-  { icon: Orbit, label: "Website Editor", href: "/dashboard/website-editor" },
-  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
-  { icon: HelpCircle, label: "Help Center", href: "/help" },
+  { icon: Orbit, label: "Website Editor", href: "/dashboard/website" },
   { icon: TrendingUp, label: "Insights", href: "/dashboard/insights" },
   { icon: MessageSquare, label: "WhatsApp Analytics", href: "/dashboard/whatsapp-analytics" },
-  { icon: Bug, label: "WhatsApp Debug", href: "/dashboard/whatsapp-debug" },
+  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {

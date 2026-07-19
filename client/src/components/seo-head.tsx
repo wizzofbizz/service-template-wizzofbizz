@@ -95,43 +95,36 @@ export function SEOHead({
 
   return null;
 }
-
-// Helper to create Organization structured data
-export function createOrganizationSchema(url: string) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "ServiceLoop",
-    "url": url,
-    "logo": `${url}/logo.png`,
-    "description": "All-in-one platform for South African service businesses: Website, CRM, booking system & invoicing.",
-    "address": {
-      "@type": "PostalAddress",
-      "addressCountry": "ZA",
-      "addressRegion": "Western Cape",
-      "addressLocality": "Cape Town"
-    },
-    "areaServed": {
-      "@type": "Country",
-      "name": "South Africa"
-    },
-    "contactPoint": {
-      "@type": "ContactPoint",
-      "contactType": "Customer Service",
-      "availableLanguage": ["English", "Afrikaans"]
-    },
-    "sameAs": []
-  };
+interface LocalBusinessSchemaOptions {
+  businessName: string;
+  businessType: string;
+  address?: string;
+  phone?: string;
+  url?: string;
+  /** ISO 3166-1 alpha-2, e.g. "ZA", "GB", "US". */
+  countryCode?: string;
+  /** Display name of the served country, e.g. "South Africa". */
+  countryName?: string;
+  /** Currency symbol used in the priceRange hint, e.g. "R", "£", "$". */
+  currencySymbol?: string;
 }
 
-// Helper to create LocalBusiness structured data
-export function createLocalBusinessSchema(
-  businessName: string,
-  businessType: string,
-  address?: string,
-  phone?: string,
-  url?: string
-) {
+/**
+ * Builds schema.org LocalBusiness structured data.
+ *
+ * Locale defaults are configurable so the template is not tied to one country
+ * — override them from site config when deploying outside South Africa.
+ */
+export function createLocalBusinessSchema({
+  businessName,
+  businessType,
+  address,
+  phone,
+  url,
+  countryCode = "ZA",
+  countryName = "South Africa",
+  currencySymbol = "R",
+}: LocalBusinessSchemaOptions) {
   return {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
@@ -140,59 +133,16 @@ export function createLocalBusinessSchema(
     ...(address && {
       "address": {
         "@type": "PostalAddress",
-        "addressCountry": "ZA",
+        "addressCountry": countryCode,
         "streetAddress": address
       }
     }),
     ...(phone && { "telephone": phone }),
     ...(url && { "url": url }),
-    "priceRange": "R",
+    "priceRange": currencySymbol,
     "areaServed": {
       "@type": "Country",
-      "name": "South Africa"
+      "name": countryName
     }
-  };
-}
-
-// Helper to create WebSite structured data with search action
-export function createWebSiteSchema(url: string) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "ServiceLoop",
-    "url": url,
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": {
-        "@type": "EntryPoint",
-        "urlTemplate": `${url}/search?q={search_term_string}`
-      },
-      "query-input": "required name=search_term_string"
-    }
-  };
-}
-
-// Helper to create SoftwareApplication structured data
-export function createSoftwareApplicationSchema(url: string) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Smart Website",
-    "applicationCategory": "BusinessApplication",
-    "operatingSystem": "Web",
-    "offers": {
-      "@type": "Offer",
-      "price": "350",
-      "priceCurrency": "ZAR",
-      "priceValidUntil": "2026-12-31"
-    },
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "5",
-      "ratingCount": "50"
-    },
-    "description": "All-in-one platform for South African service businesses: Website, CRM, booking system & invoicing. Setup in 24 hours from R350/month.",
-    "url": url,
-    "screenshot": `${url}/screenshot.png`
   };
 }

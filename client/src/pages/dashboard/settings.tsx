@@ -18,7 +18,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import GbpDashboard from "@/pages/dashboard/gbp-dashboard";
 import { WaSenderQRLink } from "@/components/WaSenderQRLink";
 
 interface DayHours {
@@ -1289,7 +1288,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <GbpDashboard />
+
         </TabsContent>
 
         <TabsContent value="calendar" className="space-y-4">

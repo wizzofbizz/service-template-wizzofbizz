@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { useState } from "react";
-import { SEOHead, createLocalBusinessSchema } from "./seo-head";
+import { SEOHead, createLocalBusinessSchema } from "@/components/seo-head";
 
 interface LandingPageContent {
   id: string;
@@ -27,15 +27,12 @@ interface BusinessData {
   };
 }
 
-interface BusinessLandingProps {
-  params: {
-    slug: string;
-  };
-}
+export default function BusinessLanding() {
+  // Single-tenant: the public API resolves the one configured business, so
+  // there is no tenant slug in the URL. "current" is the sentinel the server
+  // accepts in place of a slug.
+  const businessSlug = "current";
 
-export default function BusinessLanding({ params }: BusinessLandingProps) {
-  const businessSlug = params.slug;
-  
   // Hooks MUST be at top level before any early returns
   const [galleryIndex, setGalleryIndex] = useState(0);
   
@@ -64,12 +61,13 @@ export default function BusinessLanding({ params }: BusinessLandingProps) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4">Business Not Found</h1>
+          <h1 className="text-4xl font-bold mb-4">Site not set up yet</h1>
           <p className="text-muted-foreground mb-6">
-            Sorry, we couldn't find a business with the slug "{businessSlug}".
+            No published website content was found. Sign in and use the Website
+            Editor to publish your landing page.
           </p>
-          <Button onClick={() => window.location.href = '/'} data-testid="button-back-home">
-            Go to Homepage
+          <Button onClick={() => window.location.href = '/login'} data-testid="button-back-home">
+            Sign in
           </Button>
         </div>
       </div>
@@ -92,7 +90,7 @@ export default function BusinessLanding({ params }: BusinessLandingProps) {
   const heroCtaButton = getElement('hero', 'cta_button');
   
   // Set default quote button URL if not specified
-  const ctaUrl = heroCtaButton?.url || `/${businessSlug}/quote`;
+  const ctaUrl = heroCtaButton?.url || '/quote';
 
   // Get services
   const servicesSection = getSection('services');
@@ -113,20 +111,17 @@ export default function BusinessLanding({ params }: BusinessLandingProps) {
   const contactBodyText = getElement('contact', 'body_text');
 
   // Create LocalBusiness structured data for SEO
-  const structuredData = createLocalBusinessSchema(
-    heroHeading?.value || 'Professional Services',
-    heroSubheading?.value || 'Quality service you can trust',
-    undefined,
-    undefined,
-    window.location.href
-  );
+  const structuredData = createLocalBusinessSchema({
+    businessName: heroHeading?.value || 'Professional Services',
+    businessType: heroSubheading?.value || 'Quality service you can trust',
+    url: window.location.href,
+  });
 
   return (
     <>
       <SEOHead 
-        title={`${heroHeading?.value || 'Professional Services'} | Smart Website`}
+        title={heroHeading?.value || 'Professional Services'}
         description={heroSubheading?.value || 'Quality service you can trust'}
-        keywords="services, professional, local business, South Africa"
         ogImage={heroBackgroundImage?.value || undefined}
         canonicalUrl={window.location.href}
         ogType="business.business"
