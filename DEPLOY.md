@@ -84,8 +84,13 @@ Deploy. Then, once, from Coolify's terminal for the app container:
 
 ```bash
 npm run db:push     # creates the tables
-npm run db:seed     # demo business, services and landing page — optional
+ALLOW_PRODUCTION_SEED=true npm run db:seed   # optional demo data
 ```
+
+The seed refuses to run under NODE_ENV=production without
+ALLOW_PRODUCTION_SEED=true, so demo data cannot land in a live client
+database by accident. Skip the seed entirely for a real client — they add
+their own services.
 
 `db:push` is deliberately manual. It is not run automatically at startup,
 because a schema change firing during a container restart is a bad way to

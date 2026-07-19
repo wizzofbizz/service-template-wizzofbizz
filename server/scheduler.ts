@@ -85,7 +85,19 @@ async function runReminderSweep(): Promise<void> {
     console.log("✅ Scheduled reminders finished.");
   } catch (error) {
     // Never rethrow: an unhandled rejection here would take the server down.
-    console.error("❌ Scheduled reminder run failed:", error);
+    //
+    // A missing-table error (42P01) means db:push has not been run yet, which
+    // is the normal state of a freshly deployed container. Say so plainly
+    // instead of dumping a stack trace the operator cannot act on.
+    const code = (error as { code?: string })?.code;
+    if (code === "42P01") {
+      console.warn(
+        "⏭️  Skipping reminders: the database schema is not set up yet. " +
+        "Run `npm run db:push` to create it."
+      );
+    } else {
+      console.error("❌ Scheduled reminder run failed:", error);
+    }
   } finally {
     running = false;
   }

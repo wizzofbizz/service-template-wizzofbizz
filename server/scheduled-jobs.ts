@@ -634,10 +634,20 @@ export async function runEmailReminders() {
   }
 }
 
-// For running as a standalone script
-// In ES modules, check if this file was run directly
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
-if (isMainModule) {
+// Standalone entry point, for running the reminder sweep as a one-off job.
+//
+// This module is BUNDLED into dist/index.js, where import.meta.url and
+// process.argv[1] both resolve to that same bundle — so the old
+// `import.meta.url === file://${process.argv[1]}` check evaluated true inside
+// the server. The sweep ran at startup against a database whose tables did
+// not exist yet, and its process.exit(1) killed the server: a restart loop on
+// every fresh deploy, before anyone could run db:push.
+//
+// RUN_REMINDERS_JOB is explicit, so it can only fire when actually intended:
+//   RUN_REMINDERS_JOB=true node dist/index.js
+// or, in development:
+//   npx tsx server/scheduled-jobs.ts
+if (process.env.RUN_REMINDERS_JOB === "true") {
   runEmailReminders()
     .then(() => process.exit(0))
     .catch(error => {

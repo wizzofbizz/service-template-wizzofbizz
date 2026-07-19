@@ -66,9 +66,15 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/package.json ./package.json
 
-# Needed by `npm run db:push` during first-time setup.
+# Needed by the first-time setup commands in DEPLOY.md:
+#   npm run db:push  -> drizzle.config.ts + shared/schema.ts
+#   npm run db:seed  -> server/seed.ts, run through tsx
+# server/ is the source, not the bundle — dist/ is what actually serves
+# traffic, but seeding executes the TypeScript directly.
 COPY --from=build --chown=node:node /app/shared ./shared
+COPY --from=build --chown=node:node /app/server ./server
 COPY --from=build --chown=node:node /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=build --chown=node:node /app/tsconfig.json ./tsconfig.json
 COPY --from=build --chown=node:node /app/migrations ./migrations
 
 USER node
