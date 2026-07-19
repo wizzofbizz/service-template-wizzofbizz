@@ -20,17 +20,33 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+/**
+ * Sidebar items, filtered to what this deployment actually uses.
+ *
+ * A menu entry leading to an empty or irrelevant page makes the product feel
+ * unfinished, so anything switched off is hidden rather than shown broken.
+ * The Website Editor is gone entirely: the site design and copy ship as part
+ * of the product and are not the client's to edit.
+ */
 const navigationItems = [
   { icon: Home, label: "Dashboard", href: "/dashboard" },
   { icon: Users, label: "Contacts", href: "/dashboard/contacts" },
-  { icon: FileText, label: "Quotes", href: "/dashboard/quotes" },
+  // No quoting step in direct-booking mode, so the section would be empty.
+  ...(siteConfig.bookingMode === "direct"
+    ? []
+    : [{ icon: FileText, label: "Quotes", href: "/dashboard/quotes" }]),
   { icon: Briefcase, label: "Jobs", href: "/dashboard/jobs" },
   { icon: CalendarIcon, label: "Calendar", href: "/dashboard/calendar" },
-  { icon: Receipt, label: "Invoices", href: "/dashboard/invoices" },
+  ...(siteConfig.features.invoicing
+    ? [{ icon: Receipt, label: "Invoices", href: "/dashboard/invoices" }]
+    : []),
   { icon: Wrench, label: "Services", href: "/dashboard/services" },
-  { icon: Orbit, label: "Website Editor", href: "/dashboard/website" },
-  { icon: TrendingUp, label: "Insights", href: "/dashboard/insights" },
-  { icon: MessageSquare, label: "WhatsApp Analytics", href: "/dashboard/whatsapp-analytics" },
+  ...(siteConfig.features.insights
+    ? [{ icon: TrendingUp, label: "Insights", href: "/dashboard/insights" }]
+    : []),
+  ...(siteConfig.features.whatsapp
+    ? [{ icon: MessageSquare, label: "WhatsApp", href: "/dashboard/whatsapp-analytics" }]
+    : []),
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 

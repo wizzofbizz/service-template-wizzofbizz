@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { RequireAuth } from "./components/RequireAuth";
+import { siteConfig } from "@/config/site";
 
 // Public site (the client's own business website)
 import BusinessLandingPage from "@/pages/business-landing";
@@ -37,7 +38,6 @@ import SettingsPage from "@/pages/dashboard/settings";
 import CalendarPage from "@/pages/dashboard/calendar";
 import InsightsPage from "@/pages/dashboard/insights";
 import WhatsAppAnalyticsPage from "@/pages/dashboard/whatsapp-analytics";
-import WebsiteEditorPage from "@/pages/dashboard/website-editor";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -89,18 +89,25 @@ function Router() {
         <Route path="/dashboard/contacts/:id">
           <Admin><Contact360Page /></Admin>
         </Route>
-        <Route path="/dashboard/quotes">
-          <Admin><QuotesPage /></Admin>
-        </Route>
-        <Route path="/dashboard/quotes/new">
-          <Admin><QuoteFormPage /></Admin>
-        </Route>
-        <Route path="/dashboard/quotes/:id/edit">
-          <Admin><QuoteFormPage /></Admin>
-        </Route>
-        <Route path="/dashboard/quotes/:id/view">
-          <Admin><QuoteFormPage /></Admin>
-        </Route>
+        {/* Quoting is skipped entirely in direct-booking mode. The routes are
+            withheld too, not just the menu items, so a disabled section is not
+            reachable by typing the URL. */}
+        {siteConfig.bookingMode !== "direct" && (
+          <>
+            <Route path="/dashboard/quotes">
+              <Admin><QuotesPage /></Admin>
+            </Route>
+            <Route path="/dashboard/quotes/new">
+              <Admin><QuoteFormPage /></Admin>
+            </Route>
+            <Route path="/dashboard/quotes/:id/edit">
+              <Admin><QuoteFormPage /></Admin>
+            </Route>
+            <Route path="/dashboard/quotes/:id/view">
+              <Admin><QuoteFormPage /></Admin>
+            </Route>
+          </>
+        )}
         <Route path="/dashboard/jobs">
           <Admin><JobsPage /></Admin>
         </Route>
@@ -110,27 +117,32 @@ function Router() {
         <Route path="/dashboard/jobs/:id/edit">
           <Admin><JobFormPage /></Admin>
         </Route>
-        <Route path="/dashboard/invoices">
-          <Admin><InvoicesPage /></Admin>
-        </Route>
-        <Route path="/dashboard/invoices/new">
-          <Admin><NewInvoicePage /></Admin>
-        </Route>
+        {siteConfig.features.invoicing && (
+          <>
+            <Route path="/dashboard/invoices">
+              <Admin><InvoicesPage /></Admin>
+            </Route>
+            <Route path="/dashboard/invoices/new">
+              <Admin><NewInvoicePage /></Admin>
+            </Route>
+          </>
+        )}
         <Route path="/dashboard/calendar">
           <Admin><CalendarPage /></Admin>
         </Route>
         <Route path="/dashboard/services">
           <Admin><ServicesPage /></Admin>
         </Route>
-        <Route path="/dashboard/insights">
-          <Admin><InsightsPage /></Admin>
-        </Route>
-        <Route path="/dashboard/whatsapp-analytics">
-          <Admin><WhatsAppAnalyticsPage /></Admin>
-        </Route>
-        <Route path="/dashboard/website">
-          <Admin><WebsiteEditorPage /></Admin>
-        </Route>
+        {siteConfig.features.insights && (
+          <Route path="/dashboard/insights">
+            <Admin><InsightsPage /></Admin>
+          </Route>
+        )}
+        {siteConfig.features.whatsapp && (
+          <Route path="/dashboard/whatsapp-analytics">
+            <Admin><WhatsAppAnalyticsPage /></Admin>
+          </Route>
+        )}
         <Route path="/dashboard/settings">
           <Admin><SettingsPage /></Admin>
         </Route>

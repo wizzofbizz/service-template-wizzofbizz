@@ -67,6 +67,40 @@ export const siteConfig = {
     invoicing: env.VITE_ENABLE_INVOICING !== "false",
     deposits: env.VITE_ENABLE_DEPOSITS === "true",
     whatsapp: env.VITE_ENABLE_WHATSAPP === "true",
+    /** Cashflow, lead funnel, aged receivables. Off by default. */
+    insights: env.VITE_ENABLE_INSIGHTS === "true",
+  },
+
+  /**
+   * Public homepage copy.
+   *
+   * Deliberately config, not database: the look and feel is delivered as part
+   * of the product, so the client cannot edit it from the admin. Change these
+   * per client in .env, then rebuild.
+   *
+   * Services shown on the homepage come from the Services section of the
+   * admin — those ARE the client's to manage.
+   */
+  home: {
+    heroHeading: env.VITE_HERO_HEADING || "Professional Services You Can Trust",
+    heroSubheading:
+      env.VITE_HERO_SUBHEADING || "Book online in minutes. Clear pricing, no surprises.",
+    heroCtaLabel: env.VITE_HERO_CTA_LABEL || "Get a Quote",
+    heroBackgroundImage:
+      env.VITE_HERO_BACKGROUND_IMAGE ||
+      "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1920&q=80",
+
+    servicesHeading: env.VITE_SERVICES_HEADING || "What We Do",
+
+    aboutHeading: env.VITE_ABOUT_HEADING || "About Us",
+    aboutBody:
+      env.VITE_ABOUT_BODY ||
+      "We are a small team who care about doing the job properly. Every booking gets the same attention, whether it is a quick visit or a large project.",
+
+    contactHeading: env.VITE_CONTACT_HEADING || "Get In Touch",
+    contactBody:
+      env.VITE_CONTACT_BODY ||
+      "Request a quote online and we will get back to you the same working day.",
   },
 } as const;
 

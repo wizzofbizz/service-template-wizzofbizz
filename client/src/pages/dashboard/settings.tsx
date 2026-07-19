@@ -522,10 +522,7 @@ export default function SettingsPage() {
                       className="flex-1 bg-gray-50"
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Your website slug cannot be changed after creation. Contact support if you need to change it.
-                  </p>
-                  <a 
+                  <a
                     href={window.location.origin}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -533,19 +530,6 @@ export default function SettingsPage() {
                   >
                     View your website →
                   </a>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Website Template</Label>
-                  <div className="p-3 bg-gray-50 rounded-md">
-                    <p className="text-sm font-medium">Classic Service Provider</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Professional template optimized for {business?.industry || "service businesses"}
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Template switching coming soon. Use the Website Editor to customize your current template.
-                  </p>
                 </div>
               </div>
 
