@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -164,7 +165,7 @@ async function seed() {
   // Seed services with questions
   const [service1] = await db.insert(schema.services).values({
       businessId: business.id,
-      name: "Window Replacement",
+      serviceName: "Window Replacement",
       description: "Professional window installation and replacement",
       pricingType: "custom",
       basePrice: "500.00",
@@ -201,7 +202,7 @@ async function seed() {
   // Consulting Services
   const [consultingService] = await db.insert(schema.services).values({
       businessId: business.id,
-      name: "Consulting Services",
+      serviceName: "Consulting Services",
       description: "Expert business consulting to help you achieve your goals and maximize growth potential.",
       pricingType: "fixed",
       basePrice: "150.00",
@@ -219,7 +220,7 @@ async function seed() {
     // Project Management
     const [projectManagementService] = await db.insert(schema.services).values({
       businessId: business.id,
-      name: "Project Management",
+      serviceName: "Project Management",
       description: "Professional project management services ensuring on-time delivery and exceptional results.",
       pricingType: "hourly",
       basePrice: "250.00",
@@ -236,7 +237,7 @@ async function seed() {
     // Technical Support
     const [technicalSupportService] = await db.insert(schema.services).values({
       businessId: business.id,
-      name: "Technical Support",
+      serviceName: "Technical Support",
       description: "24/7 technical support and maintenance services to keep your systems running smoothly.",
       pricingType: "per_item",
       basePrice: "100.00",

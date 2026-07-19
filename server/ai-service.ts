@@ -1,3 +1,4 @@
+import { isAiConfigured } from "./config";
 
 import { GoogleGenerativeAI, Part } from "@google/generative-ai";
 import type { Service, ImageAnalysisConfig } from "../shared/schema";
@@ -67,6 +68,16 @@ export class AIQuoteService {
     allServices?: Service[],
     preMappedVariables?: Record<string, any>
   ): Promise<QuoteGenerationResult> {
+    // AI quoting is optional. Without a provider key we fall back to the
+    // service's own pricing rules rather than failing the customer's request.
+    if (!isAiConfigured()) {
+      console.warn(
+        "AI quoting is not configured (no GEMINI_API_KEY). " +
+        "Falling back to rule-based pricing for this quote."
+      );
+      return this.generateRuleBasedQuote(service, preMappedVariables);
+    }
+
     try {
       const prompt = this.buildPrompt(service, customerInput, allServices);
       
@@ -208,9 +219,54 @@ export class AIQuoteService {
         upsellSuggestions: parsed.upsells || [],
       };
     } catch (error) {
-      console.error("AI quote generation error:", error);
-      throw new Error("Failed to generate AI quote");
+      // A provider outage, quota error or malformed response must not take the
+      // customer's quote request down with it — fall back to the service rules.
+      console.error("AI quote generation error, falling back to rule-based pricing:", error);
+      return this.generateRuleBasedQuote(service, preMappedVariables);
     }
+  }
+
+  /**
+   * Deterministic quote from the service's own pricing rules, used when the AI
+   * provider is unconfigured or unavailable.
+   *
+   * Confidence is deliberately low so the admin UI flags these for review: the
+   * price comes from configured rules only, with no interpretation of what the
+   * customer actually wrote.
+   */
+  private generateRuleBasedQuote(
+    service: Service,
+    preMappedVariables?: Record<string, any>
+  ): QuoteGenerationResult {
+    const features: ExtractedFeatures = {
+      urgency: "normal",
+      complexity: "moderate",
+      ...(preMappedVariables || {}),
+    };
+
+    const laborPrice = this.calculatePrice(service, features);
+    const suggestedPrice = Math.round(laborPrice * 100) / 100;
+
+    return {
+      extractedFeatures: features,
+      suggestedPrice,
+      laborPrice: suggestedPrice,
+      materialPrice: 0,
+      lineItems: [
+        {
+          description: service.serviceName,
+          quantity: "1",
+          unitPrice: suggestedPrice.toFixed(2),
+          lineTotal: suggestedPrice.toFixed(2),
+        },
+      ],
+      confidence: 0.3,
+      reasoning:
+        "Estimated from this service's configured pricing rules. AI analysis " +
+        "was unavailable, so the request text was not interpreted — please " +
+        "review before sending to the customer.",
+      upsellSuggestions: [],
+    };
   }
 
   /**

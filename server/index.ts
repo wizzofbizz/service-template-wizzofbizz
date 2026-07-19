@@ -1,3 +1,6 @@
+// Must run before any other import reads process.env.
+import "dotenv/config";
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -64,7 +67,12 @@ app.use((req, res, next) => {
   // doesn't interfere with the other routes
   // Use BUILD_MODE to control whether to serve built files or use Vite dev server
   // This allows NODE_ENV to be set to 'production' for other purposes (like PayFast)
-  const buildMode = process.env.BUILD_MODE || 'development';
+  // Serve the built client in production, Vite's dev middleware otherwise.
+  // BUILD_MODE can still force either mode, but NODE_ENV is the default signal
+  // so that `npm start` serves the real build without extra configuration.
+  const buildMode = process.env.BUILD_MODE
+    || (process.env.NODE_ENV === 'production' ? 'production' : 'development');
+
   if (buildMode === 'development') {
     await setupVite(app, server);
   } else {

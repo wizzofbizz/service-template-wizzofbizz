@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import { getPublicBaseUrl } from "./config";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
@@ -2090,8 +2091,10 @@ ${aiResult.reasoning}`,
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      // Verify password (in production, use bcrypt.compare)
-      if (user.passwordHash !== password) {
+      // Verify password against the stored bcrypt hash.
+      // NOTE: this previously compared the plaintext password to the hash with
+      // `!==`, which could never match a hashed password.
+      if (!user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
@@ -2349,9 +2352,10 @@ ${aiResult.reasoning}`,
         return res.status(400).json({ message: "Reset token has expired. Please request a new one." });
       }
 
-      // Update password and clear reset token
+      // Update password and clear reset token.
+      // NOTE: this previously stored the new password in PLAINTEXT.
       await storage.updateUser(user.id, {
-        passwordHash: newPassword, // TODO: Hash with bcrypt in production
+        passwordHash: await bcrypt.hash(newPassword, 10),
         passwordResetToken: null,
         passwordResetExpiresAt: null,
       });
@@ -2630,14 +2634,15 @@ ${aiResult.reasoning}`,
         return res.status(400).json({ message: "Cannot change password for OAuth accounts" });
       }
 
-      // Verify current password (in production, use bcrypt.compare)
-      if (user.passwordHash !== currentPassword) {
+      // Verify current password against the stored bcrypt hash.
+      // NOTE: this previously compared plaintext to the hash with `!==`.
+      if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
         return res.status(401).json({ message: "Current password is incorrect" });
       }
 
-      // Update password (in production, hash with bcrypt)
+      // NOTE: this previously stored the new password in PLAINTEXT.
       await storage.updateUser(user.id, {
-        passwordHash: newPassword,
+        passwordHash: await bcrypt.hash(newPassword, 10),
       });
 
       res.json({ message: "Password updated successfully" });
