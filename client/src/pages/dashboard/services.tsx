@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Wrench, Sparkles, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Wrench, Sparkles, Plus, Pencil, Trash2, Loader2, Check, AlertCircle } from "lucide-react";
 import { AIProgressOrb } from "@/components/AIProgressOrb";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -80,6 +80,15 @@ export default function ServicesPage() {
   const [pricingFormula, setPricingFormula] = useState("");
   const [aiGuidancePrompt, setAiGuidancePrompt] = useState("");
   const [ruleConfigJson, setRuleConfigJson] = useState("{}");
+
+  // Live formula check. Without this a typo saves silently and only shows up
+  // when a customer's quote comes back at base price.
+  const [formulaCheck, setFormulaCheck] = useState<{
+    valid: boolean;
+    message?: string;
+    preview?: number;
+  } | null>(null);
+
   const [isActive, setIsActive] = useState(true);
   const [serviceQuestions, setServiceQuestions] = useState<Array<{
     question: string;
@@ -91,6 +100,42 @@ export default function ServicesPage() {
   const [requiredPhotos, setRequiredPhotos] = useState<string[]>([]);
   const [analysisHints, setAnalysisHints] = useState("");
   const [materialCostConfig, setMaterialCostConfig] = useState<Record<string, any>>({});
+  useEffect(() => {
+    if (!pricingFormula.trim()) {
+      setFormulaCheck(null);
+      return;
+    }
+
+    // Debounced so it does not fire on every keystroke mid-word.
+    const timer = setTimeout(async () => {
+      try {
+        let parsedRules = {};
+        try {
+          parsedRules = JSON.parse(ruleConfigJson || "{}");
+        } catch {
+          // Invalid rule JSON is reported separately on save; check the
+          // formula against no rules rather than failing here.
+        }
+
+        const response = await fetch("/api/services/validate-formula", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            formula: pricingFormula,
+            basePrice,
+            ruleConfig: parsedRules,
+          }),
+        });
+
+        setFormulaCheck(response.ok ? await response.json() : null);
+      } catch {
+        setFormulaCheck(null);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [pricingFormula, basePrice, ruleConfigJson]);
 
   // Fetch current business to get industry
   const { data: businessData } = useQuery<{ business: { industry: string } }>({
@@ -255,6 +300,18 @@ export default function ServicesPage() {
       parsedRuleConfig = JSON.parse(ruleConfigJson);
     } catch {
       toast({ title: "Error", description: "Invalid JSON in Rule Configuration", variant: "destructive" });
+      return;
+    }
+
+    // Refuse to save a formula that cannot be evaluated. Otherwise it saves
+    // fine and quietly falls back to base price on every quote — under-charging
+    // without anyone noticing.
+    if (pricingFormula.trim() && formulaCheck && !formulaCheck.valid) {
+      toast({
+        title: "Check the pricing formula",
+        description: formulaCheck.message || "That formula could not be read.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -702,6 +759,24 @@ export default function ServicesPage() {
                     Variables: base_price, hours, km, urgency_multiplier, complexity_multiplier,
                     plus any from Rule Config
                   </p>
+
+                  {formulaCheck && (
+                    <div
+                      className={`flex gap-2 rounded-md border p-2 text-xs ${
+                        formulaCheck.valid
+                          ? "border-green-200 bg-green-50 text-green-800"
+                          : "border-red-200 bg-red-50 text-red-800"
+                      }`}
+                      data-testid="formula-check"
+                    >
+                      {formulaCheck.valid ? (
+                        <Check className="h-4 w-4 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      )}
+                      <span>{formulaCheck.message}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

@@ -2595,6 +2595,68 @@ ${aiResult.reasoning}`,
   });
 
   /**
+   * Admin: check a pricing formula before it is saved, and show what it would
+   * produce for a sample job. Catches typos at the point of editing rather
+   * than when a customer's quote silently comes back at base price.
+   */
+  app.post('/api/services/validate-formula', requireAuth, attachBusinessContext, async (req: Request, res: Response) => {
+    try {
+      const { formula, basePrice, ruleConfig } = req.body as {
+        formula?: string;
+        basePrice?: string | number;
+        ruleConfig?: Record<string, unknown>;
+      };
+
+      if (!formula || !String(formula).trim()) {
+        return res.json({ valid: true, message: "No formula set — the base price will be used." });
+      }
+
+      const { evaluateFormula, validateFormula } = await import('./formula');
+
+      // Only numeric rule values can take part in a calculation.
+      const numericRules: Record<string, number> = {};
+      for (const [key, value] of Object.entries(ruleConfig || {})) {
+        const asNumber = typeof value === 'number' ? value : parseFloat(String(value));
+        if (Number.isFinite(asNumber)) numericRules[key] = asNumber;
+      }
+
+      const available = [
+        'base_price', 'hours', 'km', 'urgency_multiplier', 'complexity_multiplier',
+        ...Object.keys(numericRules),
+      ];
+
+      const result = validateFormula(String(formula), available);
+      if (!result.valid) {
+        return res.json({ valid: false, message: result.error });
+      }
+
+      // Preview against a representative job so the owner sees a real number.
+      const base = parseFloat(String(basePrice ?? '0')) || 0;
+      const sample = {
+        base_price: base,
+        hours: 2,
+        km: 10,
+        urgency_multiplier: 1,
+        complexity_multiplier: 1,
+        ...numericRules,
+      };
+
+      const preview = Math.max(0, evaluateFormula(String(formula), sample));
+
+      res.json({
+        valid: true,
+        preview: Math.round(preview * 100) / 100,
+        message: `A 2-hour job 10km away would price at R${preview.toFixed(2)}.`,
+      });
+    } catch (error) {
+      res.json({
+        valid: false,
+        message: error instanceof Error ? error.message : "That formula could not be read.",
+      });
+    }
+  });
+
+  /**
    * Admin-only: whether the SERVER has PayFast credentials, so Settings can
    * explain that payments will not go live until they are added. Reports
    * presence only — never the credentials themselves.
