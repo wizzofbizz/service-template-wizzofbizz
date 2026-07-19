@@ -1,0 +1,34 @@
+node_modules
+dist
+.DS_Store
+server/public
+
+# Environment — never commit real credentials
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Secrets / credentials
+*.pem
+*.key
+*.p12
+service-account*.json
+gcp-credentials*.json
+
+# Build & tooling
+vite.config.ts.*
+*.tar.gz
+*.log
+coverage
+.vite
+.turbo
+
+# Editor / OS
+.vscode
+.idea
+Thumbs.db
+
+# Local scratch
+tmp
+.claude

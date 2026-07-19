@@ -1,0 +1,32 @@
+
+-- Extend activity_action enum with customer engagement actions
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'quote_requested';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'quote_sent';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'quote_viewed';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'quote_accepted';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'quote_declined';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'quote_expired';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'booking_requested';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'booking_rescheduled';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'booking_cancelled';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'booking_reminder_sent';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'job_started';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'job_completed';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'job_paused';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'invoice_sent';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'invoice_viewed';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'invoice_paid';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'payment_received';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'payment_reminder_sent';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'email_sent';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'email_opened';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'email_clicked';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'whatsapp_sent';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'whatsapp_delivered';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'whatsapp_read';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'call_inbound';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'call_outbound';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'message_received';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'review_requested';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'review_submitted';
+ALTER TYPE activity_action ADD VALUE IF NOT EXISTS 'feedback_received';
