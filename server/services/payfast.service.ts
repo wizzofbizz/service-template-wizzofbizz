@@ -1,4 +1,5 @@
 
+import { getPublicBaseUrl } from "../config";
 import crypto from "crypto";
 
 // =====================================================
@@ -134,7 +135,7 @@ export class PayFastService {
 
       if (!merchantId || !merchantKey || !passphrase) {
         throw new Error(
-          "Missing PayFast sandbox credentials. Please set PAYFAST_SANDBOX_MERCHANT_ID, PAYFAST_SANDBOX_MERCHANT_KEY, and PAYFAST_SANDBOX_PASSPHRASE in Replit Secrets."
+          "Missing PayFast sandbox credentials. Please set PAYFAST_SANDBOX_MERCHANT_ID, PAYFAST_SANDBOX_MERCHANT_KEY, and PAYFAST_SANDBOX_PASSPHRASE in your environment (.env)."
         );
       }
 
@@ -152,7 +153,7 @@ export class PayFastService {
 
       if (!merchantId || !merchantKey || !passphrase) {
         throw new Error(
-          "Missing PayFast production credentials. Please set PAYFAST_PROD_MERCHANT_ID, PAYFAST_PROD_MERCHANT_KEY, and PAYFAST_PROD_PASSPHRASE in Replit Secrets."
+          "Missing PayFast production credentials. Please set PAYFAST_PROD_MERCHANT_ID, PAYFAST_PROD_MERCHANT_KEY, and PAYFAST_PROD_PASSPHRASE in your environment (.env)."
         );
       }
 
@@ -185,10 +186,8 @@ export class PayFastService {
     // Format amount to two decimal places
     const formattedAmount = parseFloat(rawAmount).toFixed(2);
 
-    // Get base URL for callbacks
-    const baseUrl = process.env.REPL_SLUG
-      ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-      : `http://localhost:${process.env.PORT || 5000}`;
+    // Get base URL for callbacks (return / cancel / notify)
+    const baseUrl = getPublicBaseUrl();
 
     // Calculate billing date (today)
     const billingDate = new Date().toISOString().split("T")[0];

@@ -1,3 +1,4 @@
+import { getPublicBaseUrl } from "./config";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -716,11 +717,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Build reschedule link for customer
-      const devDomain = process.env.REPLIT_DEV_DOMAIN;
-      const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-      const replitDomain = devDomain || prodDomain || 'localhost:5000';
-      const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-      const rescheduleLink = `${protocol}://${replitDomain}/quote/${quote.id}?token=${quote.publicToken}`;
+      const baseUrl = getPublicBaseUrl();
+      const rescheduleLink = `${baseUrl}/quote/${quote.id}?token=${quote.publicToken}`;
 
       // MULTI-CHANNEL LOGIC: WhatsApp First (if opted in)
       const { sendWhatsAppNotification } = await import('./whatsapp-notification');
@@ -1074,11 +1072,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Build reschedule link for customer
-      const devDomain = process.env.REPLIT_DEV_DOMAIN;
-      const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-      const replitDomain = devDomain || prodDomain || 'localhost:5000';
-      const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-      const rescheduleLink = `${protocol}://${replitDomain}/quote/${quote.id}?token=${quote.publicToken}`;
+      const baseUrl = getPublicBaseUrl();
+      const rescheduleLink = `${baseUrl}/quote/${quote.id}?token=${quote.publicToken}`;
 
       // MULTI-CHANNEL LOGIC: WhatsApp First (if opted in)
       const { sendWhatsAppNotification } = await import('./whatsapp-notification');
@@ -1515,11 +1510,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Build quote view link
-      const devDomain = process.env.REPLIT_DEV_DOMAIN;
-      const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-      const replitDomain = devDomain || prodDomain || 'localhost:5000';
-      const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-      const quoteViewLink = `${protocol}://${replitDomain}/quotes/${quote.id}/view?token=${publicToken}`;
+      const baseUrl = getPublicBaseUrl();
+      const quoteViewLink = `${baseUrl}/quotes/${quote.id}/view?token=${publicToken}`;
 
       // Save photos if provided
       if (photos && Array.isArray(photos) && photos.length > 0) {
@@ -1934,11 +1926,8 @@ ${aiResult.reasoning}`,
       const contact = await storage.getContact(quote.contactId, quote.businessId);
 
       if (business && contact) {
-        const devDomain = process.env.REPLIT_DEV_DOMAIN;
-        const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-        const replitDomain = devDomain || prodDomain || 'localhost:5000';
-        const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-        const invoiceViewLink = `${protocol}://${replitDomain}/invoices/${depositInvoice.id}/view?token=${depositInvoice.publicToken}`;
+        const baseUrl = getPublicBaseUrl();
+        const invoiceViewLink = `${baseUrl}/invoices/${depositInvoice.id}/view?token=${depositInvoice.publicToken}`;
 
         // Build notification based on deposit requirement
         if (quote.requiresDeposit && depositInvoice) {
@@ -2002,7 +1991,7 @@ ${aiResult.reasoning}`,
           });
         } else {
           // No deposit required - standard booking flow
-          const bookingLink = `${protocol}://${replitDomain}/quote/${quote.id}?token=${quote.publicToken}`;
+          const bookingLink = `${baseUrl}/quote/${quote.id}?token=${quote.publicToken}`;
 
           // Notify business owner
           await storage.createEmailQueueItem({
@@ -2217,11 +2206,8 @@ ${aiResult.reasoning}`,
       });
 
       // Send verification email
-      const devDomain = process.env.REPLIT_DEV_DOMAIN;
-      const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-      const replitDomain = devDomain || prodDomain || 'localhost:5000';
-      const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-      const verificationLink = `${protocol}://${replitDomain}/verify-email?token=${verificationToken}`;
+      const baseUrl = getPublicBaseUrl();
+      const verificationLink = `${baseUrl}/verify-email?token=${verificationToken}`;
 
       const { getEmailVerificationTemplate } = await import('./email-templates');
       const emailTemplate = getEmailVerificationTemplate({
@@ -2315,11 +2301,8 @@ ${aiResult.reasoning}`,
       });
 
       // Send password reset email
-      const devDomain = process.env.REPLIT_DEV_DOMAIN;
-      const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-      const replitDomain = devDomain || prodDomain || 'localhost:5000';
-      const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-      const resetLink = `${protocol}://${replitDomain}/reset-password?token=${resetToken}`;
+      const baseUrl = getPublicBaseUrl();
+      const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
 
       const { getPasswordResetTemplate } = await import('./email-templates');
       const emailTemplate = getPasswordResetTemplate({
@@ -2920,11 +2903,8 @@ ${aiResult.reasoning}`,
       const contact = await storage.getContact(job.contactId, businessId);
 
       if (business && contact) {
-        const devDomain = process.env.REPLIT_DEV_DOMAIN;
-        const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-        const replitDomain = devDomain || prodDomain || 'localhost:5000';
-        const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-        const invoiceViewLink = `${protocol}://${replitDomain}/invoices/${depositInvoice.id}/view?token=${publicToken}`;
+        const baseUrl = getPublicBaseUrl();
+        const invoiceViewLink = `${baseUrl}/invoices/${depositInvoice.id}/view?token=${publicToken}`;
 
         console.log(`\n📤 [Deposit Invoice] Processing for ${contact.fullName}`);
 
@@ -5118,11 +5098,8 @@ ${aiResult.reasoning}`,
                 }
 
                 // Build quote view link
-                const devDomain = process.env.REPLIT_DEV_DOMAIN;
-                const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-                const replitDomain = devDomain || prodDomain || 'localhost:5000';
-                const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-                const quoteViewLink = `${protocol}://${replitDomain}/quotes/${quote.id}/view?token=${publicToken}`;
+                const baseUrl = getPublicBaseUrl();
+                const quoteViewLink = `${baseUrl}/quotes/${quote.id}/view?token=${publicToken}`;
 
                 console.log(`\n`);
                 console.log(`📤 [Create & Send Quote] Processing quote ${quote.quoteNumber} for ${contact.fullName}`);
@@ -5139,7 +5116,7 @@ ${aiResult.reasoning}`,
                 const whatsappResult = await sendWhatsAppNotification({
                   business,
                   contact,
-                  messageBody: `Hi ${contact.fullName}, your quote ${quote.quoteNumber} is ready!\n\nTotal: R${parseFloat(quote.totalAmount).toFixed(2)}\nValid until: ${quote.validUntil || 'TBD'}\n\nView and accept: ${protocol}://${replitDomain}/quotes/${quote.id}/view?token=${publicToken}\n\n- ${business.businessName}`,
+                  messageBody: `Hi ${contact.fullName}, your quote ${quote.quoteNumber} is ready!\n\nTotal: R${parseFloat(quote.totalAmount).toFixed(2)}\nValid until: ${quote.validUntil || 'TBD'}\n\nView and accept: ${baseUrl}/quotes/${quote.id}/view?token=${publicToken}\n\n- ${business.businessName}`,
                   templateName: 'quote_sent_whatsapp',
                   relatedType: 'quote',
                   relatedId: quote.id,
@@ -5461,11 +5438,8 @@ ${aiResult.reasoning}`,
       }
 
       // Build quote view link using the publicToken variable (not quote.publicToken)
-      const devDomain = process.env.REPLIT_DEV_DOMAIN;
-      const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-      const replitDomain = devDomain || prodDomain || 'localhost:5000';
-      const protocol = replitDomain.includes('localhost') ? 'http' : 'https';
-      const quoteViewLink = `${protocol}://${replitDomain}/quotes/${quote.id}/view?token=${publicToken}`;
+      const baseUrl = getPublicBaseUrl();
+      const quoteViewLink = `${baseUrl}/quotes/${quote.id}/view?token=${publicToken}`;
 
       let sentVia: string[] = [];
 
@@ -5482,7 +5456,7 @@ ${aiResult.reasoning}`,
       const whatsappResult = await sendWhatsAppNotification({
         business,
         contact,
-        messageBody: `Hi ${contact.fullName}, your quote ${quote.quoteNumber} is ready!\n\nTotal: R${parseFloat(quote.totalAmount).toFixed(2)}\nValid until: ${quote.validUntil || 'TBD'}\n\nView and accept: ${protocol}://${replitDomain}/quotes/${quote.id}/view?token=${publicToken}\n\n- ${business.businessName}`,
+        messageBody: `Hi ${contact.fullName}, your quote ${quote.quoteNumber} is ready!\n\nTotal: R${parseFloat(quote.totalAmount).toFixed(2)}\nValid until: ${quote.validUntil || 'TBD'}\n\nView and accept: ${baseUrl}/quotes/${quote.id}/view?token=${publicToken}\n\n- ${business.businessName}`,
         templateName: 'quote_sent_whatsapp',
         relatedType: 'quote',
         relatedId: quote.id,
@@ -6088,7 +6062,7 @@ ${aiResult.reasoning}`,
           invoiceNumber: invoice.invoiceNumber,
           invoiceTotal: `R${parseFloat(invoice.totalAmount).toFixed(2)}`,
           dueDate: dueDate.toISOString().split('T')[0],
-          invoiceViewLink: `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000'}/invoices/${invoice.id}/view?token=${invoice.publicToken}`,
+          invoiceViewLink: `${getPublicBaseUrl()}/invoices/${invoice.id}/view?token=${invoice.publicToken}`,
           businessPhone: business.phone || '',
           businessEmail: business.email || '',
         });
@@ -6117,14 +6091,14 @@ ${aiResult.reasoning}`,
       const whatsappResult = await sendWhatsAppNotification({
         business,
         contact,
-        messageBody: `Invoice ${invoice.invoiceNumber} for ${job.title} is ready. Amount: R${invoiceTotal.toFixed(2)}. Due: ${dueDate.toISOString().split('T')[0]}. View & Pay: ${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000'}/invoices/${invoice.id}/view?token=${invoice.publicToken} - ${business.businessName}`,
+        messageBody: `Invoice ${invoice.invoiceNumber} for ${job.title} is ready. Amount: R${invoiceTotal.toFixed(2)}. Due: ${dueDate.toISOString().split('T')[0]}. View & Pay: ${getPublicBaseUrl()}/invoices/${invoice.id}/view?token=${invoice.publicToken} - ${business.businessName}`,
         templateName: 'invoice_sent_whatsapp',
         templateParams: {
           '1': invoice.invoiceNumber,
           '2': job.title,
           '3': `R${invoiceTotal.toFixed(2)}`,
           '4': dueDate.toISOString().split('T')[0],
-          '5': `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000'}/invoices/${invoice.id}/view?token=${invoice.publicToken}`,
+          '5': `${getPublicBaseUrl()}/invoices/${invoice.id}/view?token=${invoice.publicToken}`,
           '6': business.businessName,
         },
         relatedType: 'invoice',
@@ -6523,7 +6497,7 @@ ${aiResult.reasoning}`,
         invoiceNumber: invoice.invoiceNumber,
         invoiceTotal: `R${parseFloat(invoice.totalAmount).toFixed(2)}`,
         dueDate: invoice.dueDate || 'TBD',
-        invoiceViewLink: `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000'}/invoices/${invoice.id}/view?token=${publicToken}`,
+        invoiceViewLink: `${getPublicBaseUrl()}/invoices/${invoice.id}/view?token=${publicToken}`,
         businessPhone: business.phone || '',
         businessEmail: business.email || '',
       });

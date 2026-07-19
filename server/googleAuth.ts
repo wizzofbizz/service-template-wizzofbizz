@@ -1,4 +1,5 @@
 
+import { getPublicBaseUrl, isGoogleAuthConfigured } from "./config";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
@@ -20,15 +21,6 @@ declare global {
       isActive: boolean;
     }
   }
-}
-
-if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-  console.error("❌ GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set in environment variables");
-  console.error("Please add these to your Secrets:");
-  console.error("- GOOGLE_CLIENT_ID");
-  console.error("- GOOGLE_CLIENT_SECRET");
-  console.error("- SESSION_SECRET (recommended)");
-  console.error("- DATABASE_URL (should already be set)");
 }
 
 export function getSession() {
@@ -80,19 +72,19 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Use REPLIT_DEV_DOMAIN for dev, REPLIT_DOMAINS for prod
-  const devDomain = process.env.REPLIT_DEV_DOMAIN;
-  const prodDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-  
-  const replitDomain = devDomain || prodDomain || 'localhost:5000';
-  
-  const callbackURL = replitDomain.includes('localhost') 
-    ? `http://${replitDomain}/api/callback`
-    : `https://${replitDomain}/api/callback`;
-  
-  console.log(`🔧 OAuth callback URL configured: ${callbackURL}`);
-  console.log(`   Dev domain: ${devDomain || 'not set'}`);
-  console.log(`   Prod domain: ${prodDomain || 'not set'}`);
+  const callbackURL = `${getPublicBaseUrl()}/api/callback`;
+
+  // Google sign-in is optional. Without credentials we simply do not register
+  // the strategy — email/password login still works and the app still boots.
+  if (!isGoogleAuthConfigured()) {
+    console.warn(
+      "ℹ️  Google sign-in disabled (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set). " +
+      "Email + password login is unaffected."
+    );
+    return;
+  }
+
+  console.log(`🔧 Google OAuth callback URL: ${callbackURL}`);
 
   passport.use(
     new GoogleStrategy(

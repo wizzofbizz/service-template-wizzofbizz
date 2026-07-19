@@ -76,11 +76,10 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  // Bind 0.0.0.0 so the app is reachable inside Docker / behind a proxy.
+  // reusePort is deliberately not set: it is unsupported on Windows and on
+  // some Linux kernels, and throws ENOTSUP at boot there.
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
 })();
