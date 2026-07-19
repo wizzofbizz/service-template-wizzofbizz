@@ -12,6 +12,7 @@ import BusinessLandingPage from "@/pages/business-landing";
 import PublicQuoteRequest from "@/pages/public-quote-request";
 import PublicQuoteView from "@/pages/public-quote-view";
 import PublicInvoiceView from "@/pages/public-invoice-view";
+import { PaymentSuccess, PaymentCancelled } from "@/pages/payment-result";
 import NotFoundPage from "@/pages/not-found";
 
 // Auth
@@ -68,6 +69,8 @@ function Router() {
         <Route path="/book" component={PublicQuoteRequest} />
         <Route path="/quotes/:id/view" component={PublicQuoteView} />
         <Route path="/invoices/:id/view" component={PublicInvoiceView} />
+        <Route path="/payment/success" component={PaymentSuccess} />
+        <Route path="/payment/cancelled" component={PaymentCancelled} />
 
         {/* Auth */}
         <Route path="/login" component={LoginPage} />

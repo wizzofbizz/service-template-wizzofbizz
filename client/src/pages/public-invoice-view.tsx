@@ -57,6 +57,67 @@ export default function PublicInvoiceView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Online payment is optional, so the button only appears when the business
+  // has switched it on and the server can actually reach PayFast.
+  const [paymentsEnabled, setPaymentsEnabled] = useState(false);
+  const [payLoading, setPayLoading] = useState(false);
+  const [payError, setPayError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/public/payments/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => setPaymentsEnabled(Boolean(s?.enabled && s?.acceptInvoicePayments)))
+      .catch(() => setPaymentsEnabled(false));
+  }, []);
+
+  /**
+   * Asks the server for a signed PayFast form, then POSTs it.
+   * The amount and signature are built server-side from the stored invoice —
+   * nothing about the payment is decided by this page.
+   */
+  const handlePayNow = async () => {
+    setPayLoading(true);
+    setPayError("");
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const pathParts = window.location.pathname.split('/');
+      const invoiceId = pathParts[pathParts.length - 2];
+      const token = params.get('token');
+
+      const response = await fetch(
+        `/api/public/payments/invoice/${invoiceId}?token=${token}`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setPayError(body.message || "Unable to start payment. Please try again.");
+        setPayLoading(false);
+        return;
+      }
+
+      const { paymentUrl, formData } = await response.json();
+
+      // PayFast expects a form POST, not a redirect.
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = paymentUrl;
+      Object.entries(formData as Record<string, string>).forEach(([key, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value ?? "";
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      setPayError("Unable to start payment. Please try again.");
+      setPayLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchInvoice = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -306,6 +367,27 @@ export default function PublicInvoiceView() {
               <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-red-800 text-center font-medium">
                   This invoice is overdue. Please arrange payment as soon as possible.
+                </p>
+              </div>
+            )}
+
+            {/* Pay now — only when the business has switched online payments on
+                AND the server has PayFast credentials. */}
+            {invoice.status !== 'paid' && paymentsEnabled && (
+              <div className="mt-6">
+                <Button
+                  onClick={handlePayNow}
+                  disabled={payLoading}
+                  className="w-full h-12 text-base"
+                  data-testid="button-pay-now"
+                >
+                  {payLoading ? "Redirecting to PayFast..." : `Pay ${formatCurrency(invoice.totalAmount)} now`}
+                </Button>
+                {payError && (
+                  <p className="mt-2 text-sm text-red-600 text-center">{payError}</p>
+                )}
+                <p className="mt-2 text-xs text-gray-500 text-center">
+                  You'll be taken to PayFast to complete payment securely.
                 </p>
               </div>
             )}

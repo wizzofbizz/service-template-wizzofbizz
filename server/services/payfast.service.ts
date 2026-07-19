@@ -1,58 +1,59 @@
-
 import { getPublicBaseUrl } from "../config";
 import crypto from "crypto";
+
+/**
+ * PayFast once-off payments.
+ *
+ * Customers use this to pay an invoice or a booking deposit. There is no
+ * recurring/subscription billing in this template — a service business charges
+ * its customers per job, it does not run a subscription product.
+ *
+ * Credentials come from the server environment only, never from the database,
+ * so the admin UI never handles secrets. The owner's Settings toggle decides
+ * WHETHER to offer online payment; the environment decides whether it CAN.
+ */
 
 // =====================================================
 // TYPE DEFINITIONS
 // =====================================================
 
 export interface PayFastFormData {
-  // Merchant details
   merchant_id: string;
   merchant_key: string;
   return_url: string;
   cancel_url: string;
   notify_url: string;
 
-  // Customer details
   name_first: string;
   name_last: string;
   email_address: string;
 
-  // Transaction details
+  m_payment_id: string;
   amount: string;
   item_name: string;
   item_description: string;
 
-  // Subscription details
-  subscription_type: string;
-  billing_date: string;
-  recurring_amount: string;
-  frequency: string;
-  cycles: string;
-
-  // Custom fields
-  custom_str1?: string; // businessId
-  custom_str2?: string; // planId
-  custom_str3?: string; // billingFrequency
-  custom_str4?: string; // discountCode
+  custom_str1?: string; // paymentType: "invoice" | "deposit"
+  custom_str2?: string; // invoiceId
+  custom_str3?: string; // jobId (deposits)
+  custom_str4?: string;
   custom_str5?: string;
 
-  // Signature
   signature: string;
 }
 
-export interface CreateSubscriptionParams {
-  businessId: string;
-  planId: string;
-  billingFrequency: "monthly" | "annually";
-  userEmail: string;
-  userFirstName: string;
-  userLastName: string;
-  amount: string;
+export interface CreatePaymentParams {
+  /** Our own reference, echoed back on the ITN. Usually the invoice id. */
+  paymentId: string;
+  amount: string | number;
   itemName: string;
-  itemDescription: string;
-  discountCode?: string;
+  itemDescription?: string;
+  customerFirstName?: string;
+  customerLastName?: string;
+  customerEmail?: string;
+  paymentType?: "invoice" | "deposit";
+  invoiceId?: string;
+  jobId?: string;
 }
 
 export interface PayFastConfig {
@@ -62,28 +63,33 @@ export interface PayFastConfig {
   baseUrl: string;
 }
 
+export class PayFastMisconfiguredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PayFastMisconfiguredError";
+  }
+}
+
 // =====================================================
-// PAYFAST SERVICE CLASS
+// PAYFAST SERVICE
 // =====================================================
 
 export class PayFastService {
   private config: PayFastConfig;
   private isSandbox: boolean;
 
-  // PayFast IP whitelist (for ITN validation)
+  /** PayFast ITN source IP ranges (production only). */
   private readonly PAYFAST_IPS = [
-    "41.208.113", // Range: 41.208.113.0/24
-    "197.221.192", // Range: 197.221.192.0/24
+    "41.208.113",
+    "197.221.192",
   ];
 
-  // Billing frequency mapping
-  private readonly FREQUENCY_MAP = {
-    monthly: "3", // Monthly
-    annually: "6", // Annual
-  };
-
-  // Field order for signature generation (MUST BE EXACT per PayFast docs)
-  private readonly SUBSCRIPTION_FIELD_ORDER = [
+  /**
+   * Field order for once-off payment signatures.
+   * MUST match PayFast's documented order exactly, and MUST match the order
+   * fields are POSTed in — a mismatch silently fails signature validation.
+   */
+  private readonly PAYMENT_FIELD_ORDER = [
     "merchant_id",
     "merchant_key",
     "return_url",
@@ -92,197 +98,164 @@ export class PayFastService {
     "name_first",
     "name_last",
     "email_address",
+    "m_payment_id",
     "amount",
     "item_name",
     "item_description",
-    "custom_str1",      // businessId
-    "custom_str2",      // planId
-    "custom_str3",      // billingFrequency
-    "custom_str4",      // discountCode
-    "custom_str5",      // discountAmount
-    "subscription_type",
-    "billing_date",
-    "recurring_amount",
-    "frequency",
-    "cycles",
+    "custom_str1",
+    "custom_str2",
+    "custom_str3",
+    "custom_str4",
+    "custom_str5",
   ];
 
   constructor() {
-    console.log(`🔍 Debug: NODE_ENV = "${process.env.NODE_ENV}"`);
-    this.isSandbox = process.env.NODE_ENV !== "production";
+    // Explicit mode switch, so a staging box running NODE_ENV=production can
+    // still be pointed at the sandbox.
+    this.isSandbox = process.env.PAYFAST_MODE !== "live";
     this.config = this.getConfig();
-    console.log(`🔧 PayFast initialized in ${this.isSandbox ? "SANDBOX" : "PRODUCTION"} mode`);
+    console.log(`🔧 PayFast initialised in ${this.isSandbox ? "SANDBOX" : "LIVE"} mode`);
+  }
+
+  /** True when credentials for the active mode are present. */
+  static isConfigured(): boolean {
+    const sandbox = process.env.PAYFAST_MODE !== "live";
+    return sandbox
+      ? Boolean(process.env.PAYFAST_SANDBOX_MERCHANT_ID && process.env.PAYFAST_SANDBOX_MERCHANT_KEY)
+      : Boolean(process.env.PAYFAST_PROD_MERCHANT_ID && process.env.PAYFAST_PROD_MERCHANT_KEY);
   }
 
   /**
-   * URL encode value with PayFast-compatible encoding (spaces as +, uppercase hex in %XX)
+   * PayFast-compatible URL encoding: spaces as +, uppercase hex.
+   * Both details matter — lowercase hex produces an invalid signature.
    */
   private urlEncodeValue(value: string): string {
     return encodeURIComponent(value)
-      .replace(/%20/g, '+')
-      .replace(/%[0-9a-f]{2}/gi, match => match.toUpperCase());
+      .replace(/%20/g, "+")
+      .replace(/%[0-9a-f]{2}/gi, (match) => match.toUpperCase());
   }
 
-  /**
-   * Get PayFast configuration based on environment
-   */
   private getConfig(): PayFastConfig {
     if (this.isSandbox) {
-      // Sandbox mode - require credentials from Secrets
       const merchantId = process.env.PAYFAST_SANDBOX_MERCHANT_ID;
       const merchantKey = process.env.PAYFAST_SANDBOX_MERCHANT_KEY;
-      const passphrase = process.env.PAYFAST_SANDBOX_PASSPHRASE;
 
-      if (!merchantId || !merchantKey || !passphrase) {
-        throw new Error(
-          "Missing PayFast sandbox credentials. Please set PAYFAST_SANDBOX_MERCHANT_ID, PAYFAST_SANDBOX_MERCHANT_KEY, and PAYFAST_SANDBOX_PASSPHRASE in your environment (.env)."
+      if (!merchantId || !merchantKey) {
+        throw new PayFastMisconfiguredError(
+          "Missing PayFast sandbox credentials. Set PAYFAST_SANDBOX_MERCHANT_ID and " +
+          "PAYFAST_SANDBOX_MERCHANT_KEY in your environment (.env)."
         );
       }
 
       return {
         merchantId,
         merchantKey,
-        passphrase,
+        // A sandbox passphrase is optional; PayFast sandbox accounts often have none.
+        passphrase: process.env.PAYFAST_SANDBOX_PASSPHRASE || "",
         baseUrl: "https://sandbox.payfast.co.za/eng/process",
       };
-    } else {
-      // Production mode - require credentials from Secrets
-      const merchantId = process.env.PAYFAST_PROD_MERCHANT_ID;
-      const merchantKey = process.env.PAYFAST_PROD_MERCHANT_KEY;
-      const passphrase = process.env.PAYFAST_PROD_PASSPHRASE;
-
-      if (!merchantId || !merchantKey || !passphrase) {
-        throw new Error(
-          "Missing PayFast production credentials. Please set PAYFAST_PROD_MERCHANT_ID, PAYFAST_PROD_MERCHANT_KEY, and PAYFAST_PROD_PASSPHRASE in your environment (.env)."
-        );
-      }
-
-      return {
-        merchantId,
-        merchantKey,
-        passphrase,
-        baseUrl: "https://www.payfast.co.za/eng/process",
-      };
     }
+
+    const merchantId = process.env.PAYFAST_PROD_MERCHANT_ID;
+    const merchantKey = process.env.PAYFAST_PROD_MERCHANT_KEY;
+    const passphrase = process.env.PAYFAST_PROD_PASSPHRASE;
+
+    if (!merchantId || !merchantKey || !passphrase) {
+      throw new PayFastMisconfiguredError(
+        "Missing PayFast production credentials. Set PAYFAST_PROD_MERCHANT_ID, " +
+        "PAYFAST_PROD_MERCHANT_KEY and PAYFAST_PROD_PASSPHRASE in your environment (.env)."
+      );
+    }
+
+    return {
+      merchantId,
+      merchantKey,
+      passphrase,
+      baseUrl: "https://www.payfast.co.za/eng/process",
+    };
   }
 
   /**
-   * Create subscription payment form data
+   * Build a signed once-off payment form for an invoice or deposit.
+   * The caller POSTs these fields to getPaymentUrl().
    */
-  async createSubscriptionForm(params: CreateSubscriptionParams): Promise<PayFastFormData> {
+  createPaymentForm(params: CreatePaymentParams): PayFastFormData {
     const {
-      businessId,
-      planId,
-      billingFrequency,
-      userEmail,
-      userFirstName,
-      userLastName,
-      amount: rawAmount,
+      paymentId,
+      amount,
       itemName,
       itemDescription,
-      discountCode,
+      customerFirstName,
+      customerLastName,
+      customerEmail,
+      paymentType = "invoice",
+      invoiceId,
+      jobId,
     } = params;
 
-    // Format amount to two decimal places
-    const formattedAmount = parseFloat(rawAmount).toFixed(2);
+    const numericAmount = typeof amount === "number" ? amount : parseFloat(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      throw new Error(`Invalid payment amount: ${amount}`);
+    }
 
-    // Get base URL for callbacks (return / cancel / notify)
     const baseUrl = getPublicBaseUrl();
 
-    // Calculate billing date (today)
-    const billingDate = new Date().toISOString().split("T")[0];
-
-    // Build form data (WITHOUT signature first) - order MUST match SUBSCRIPTION_FIELD_ORDER
-    // CRITICAL: All fields including empty custom_str4 and custom_str5 MUST be present
-    const formData: Partial<PayFastFormData> = {
-      // Merchant details
+    const formData: Record<string, string> = {
       merchant_id: this.config.merchantId,
       merchant_key: this.config.merchantKey,
-      return_url: `${baseUrl}/api/subscriptions/return`,
-      cancel_url: `${baseUrl}/api/subscriptions/cancel`,
-      notify_url: `${baseUrl}/api/subscriptions/webhook/payfast`,
+      return_url: `${baseUrl}/api/payments/return`,
+      cancel_url: `${baseUrl}/api/payments/cancel`,
+      notify_url: `${baseUrl}/api/payments/webhook/payfast`,
 
-      // Customer details
-      name_first: userFirstName,
-      name_last: userLastName,
-      email_address: userEmail,
+      name_first: customerFirstName || "",
+      name_last: customerLastName || "",
+      email_address: customerEmail || "",
 
-      // Transaction details
-      amount: formattedAmount,
-      item_name: itemName,
-      item_description: itemDescription,
+      m_payment_id: paymentId,
+      amount: numericAmount.toFixed(2),
+      item_name: itemName.slice(0, 100), // PayFast caps this at 100 chars
+      item_description: (itemDescription || itemName).slice(0, 255),
 
-      // Custom fields (metadata) - ALL fields MUST be included, even if empty strings
-      // PayFast requires these in both signature AND POST data
-      custom_str1: businessId,
-      custom_str2: planId,
-      custom_str3: billingFrequency,
-      custom_str4: discountCode !== undefined && discountCode !== null ? discountCode : "",
-      custom_str5: "", // Always empty string, never undefined
-
-      // Subscription details - MUST come after custom fields
-      subscription_type: "1", // Subscription
-      billing_date: billingDate,
-      recurring_amount: formattedAmount,
-      frequency: this.FREQUENCY_MAP[billingFrequency],
-      cycles: "0", // 0 = unlimited recurring
+      custom_str1: paymentType,
+      custom_str2: invoiceId || "",
+      custom_str3: jobId || "",
+      custom_str4: "",
+      custom_str5: "",
     };
 
-    // Generate signature
-    const signature = this.generateFormSignature(formData as Record<string, string>);
+    const signature = this.generateFormSignature(formData);
 
-    // Return complete form data with signature
-    return {
-      ...formData,
-      signature,
-    } as PayFastFormData;
+    return { ...formData, signature } as unknown as PayFastFormData;
   }
 
   /**
-   * Generate MD5 signature for PayFast form
-   * CRITICAL: Must use exact field order and URL encoding per PayFast docs
-   * CRITICAL: Must include ALL fields from SUBSCRIPTION_FIELD_ORDER, even empty strings
+   * MD5 signature over the fields in PAYMENT_FIELD_ORDER, with the passphrase
+   * appended last. Every field is included, even empty ones, because the
+   * signature must match the POSTed data exactly.
    */
   generateFormSignature(data: Record<string, string>): string {
-    // Build query string with exact field order
     const pairs: string[] = [];
 
-    for (const key of this.SUBSCRIPTION_FIELD_ORDER) {
-      // Check if field exists in data (including empty strings)
+    for (const key of this.PAYMENT_FIELD_ORDER) {
       if (data[key] !== undefined && data[key] !== null) {
-        const value = data[key].toString().trim();
-        // CRITICAL: Include ALL fields, even empty strings
-        // PayFast requires exact match between signature fields and POST data
-        const encodedValue = this.urlEncodeValue(value);
-        pairs.push(`${key}=${encodedValue}`);
+        pairs.push(`${key}=${this.urlEncodeValue(String(data[key]).trim())}`);
       }
     }
 
-    // Join parameter pairs
     let queryString = pairs.join("&");
 
-    // Add passphrase at the end (trim and append raw, as per working implementations)
     if (this.config.passphrase) {
-      const trimmedPassphrase = this.config.passphrase.trim();
-      queryString += `&passphrase=${trimmedPassphrase}`;
+      queryString += `&passphrase=${this.config.passphrase.trim()}`;
     }
 
-    // Generate MD5 hash (lowercase)
-    const signature = crypto.createHash("md5").update(queryString).digest("hex").toLowerCase();
-
-    console.log(`🔐 PayFast signature generated`);
-    console.log(`📝 Complete query string:\n${queryString}`);
-    console.log(`🔍 Uppercase hex check: ${queryString.includes('%3A') ? '✅ YES' : '❌ NO (lowercase hex detected!)'}`);
-    console.log(`🔍 custom_str4 present: ${queryString.includes('custom_str4=') ? '✅ YES' : '❌ NO'}`);
-    console.log(`🔍 custom_str5 present: ${queryString.includes('custom_str5=') ? '✅ YES' : '❌ NO'}`);
-    console.log(`✅ Signature: ${signature}`);
-    
-    return signature;
+    return crypto.createHash("md5").update(queryString).digest("hex").toLowerCase();
   }
 
   /**
-   * Validate ITN (Instant Transaction Notification) signature
-   * Uses exact received order and consistent encoding
+   * Validate an ITN signature.
+   *
+   * Uses the EXACT order the fields were received in — sorting them breaks
+   * validation — and excludes empty values, per PayFast's ITN spec.
    */
   validateITNSignature(data: Record<string, string>): boolean {
     try {
@@ -292,46 +265,29 @@ export class PayFastService {
         return false;
       }
 
-      // Remove signature from data for validation
-      const dataWithoutSignature = { ...data };
-      delete dataWithoutSignature.signature;
+      const { signature, ...rest } = data;
 
-      // Use EXACT RECEIVED ORDER (do not sort!)
-      const keys = Object.keys(dataWithoutSignature);
       const pairs: string[] = [];
-
-      for (const key of keys) {
-        const value = String(dataWithoutSignature[key] ?? '');
-        if (value !== '') {  // Exclude blank/empty values
-          const encodedValue = this.urlEncodeValue(value);
-          pairs.push(`${key}=${encodedValue}`);
+      for (const key of Object.keys(rest)) {
+        const value = String(rest[key] ?? "");
+        if (value !== "") {
+          pairs.push(`${key}=${this.urlEncodeValue(value)}`);
         }
       }
 
-      // Join pairs
       let queryString = pairs.join("&");
-
-      // Append passphrase (append raw, as per working implementations)
       if (this.config.passphrase) {
-        const trimmedPassphrase = this.config.passphrase.trim();
-        queryString += `&passphrase=${trimmedPassphrase}`;
+        queryString += `&passphrase=${this.config.passphrase.trim()}`;
       }
 
-      // Generate expected signature
-      const expectedSignature = crypto.createHash("md5").update(queryString).digest("hex").toLowerCase();
+      const expected = crypto.createHash("md5").update(queryString).digest("hex").toLowerCase();
 
-      // Compare signatures
-      const isValid = receivedSignature === expectedSignature;
+      // Constant-time comparison: both are fixed-length hex digests.
+      const isValid =
+        receivedSignature.length === expected.length &&
+        crypto.timingSafeEqual(Buffer.from(receivedSignature), Buffer.from(expected));
 
-      if (!isValid) {
-        console.error("❌ ITN signature mismatch");
-        console.error("Received:", receivedSignature);
-        console.error("Expected:", expectedSignature);
-        console.error("Query string used:", queryString);
-      } else {
-        console.log("✅ ITN signature valid");
-      }
-
+      if (!isValid) console.error("❌ ITN signature mismatch");
       return isValid;
     } catch (error) {
       console.error("❌ Error validating ITN signature:", error);
@@ -340,106 +296,55 @@ export class PayFastService {
   }
 
   /**
-   * Validate PayFast server IP address
-   * Only accept ITN requests from PayFast IP ranges
+   * Check the ITN came from a PayFast IP.
+   *
+   * Sandbox accepts any source so the flow can be tested locally; live traffic
+   * is restricted to PayFast's published ranges.
    */
   validateITNIP(ipAddress: string): boolean {
-    if (this.isSandbox) {
-      // In sandbox, allow localhost and any IP for testing
-      console.log(`🔧 Sandbox mode: Accepting IP ${ipAddress}`);
-      return true;
-    }
+    if (this.isSandbox) return true;
 
-    // Check if IP starts with any whitelisted range
-    const isValid = this.PAYFAST_IPS.some((allowedPrefix) => ipAddress.startsWith(allowedPrefix));
+    const normalised = ipAddress.replace(/^::ffff:/, "");
+    const isValid = this.PAYFAST_IPS.some((prefix) => normalised.startsWith(prefix));
 
-    if (!isValid) {
-      console.error(`❌ Invalid PayFast IP: ${ipAddress}`);
-    } else {
-      console.log(`✅ Valid PayFast IP: ${ipAddress}`);
-    }
-
+    if (!isValid) console.error(`❌ Rejected ITN from non-PayFast IP: ${normalised}`);
     return isValid;
   }
 
   /**
-   * Cancel subscription via PayFast API
-   * @param token - PayFast subscription token
+   * Confirm the ITN amount matches what we expected, to the cent.
+   * Without this a tampered ITN could mark a large invoice paid for R1.
    */
-  async cancelSubscription(token: string): Promise<boolean> {
-    try {
-      const url = this.isSandbox
-        ? `https://sandbox.payfast.co.za/eng/recurring/cancel/${token}`
-        : `https://www.payfast.co.za/eng/recurring/cancel/${token}`;
+  validateAmount(expected: string | number, received: string | number): boolean {
+    const a = Math.round(parseFloat(String(expected)) * 100);
+    const b = Math.round(parseFloat(String(received)) * 100);
 
-      const response = await fetch(url, {
-        method: "PUT",
-        headers: {
-          "merchant-id": this.config.merchantId,
-          version: "v1",
-          timestamp: new Date().toISOString(),
-        },
-      });
-
-      if (response.ok) {
-        console.log(`✅ Subscription ${token} cancelled successfully`);
-        return true;
-      } else {
-        console.error(`❌ Failed to cancel subscription ${token}:`, response.statusText);
-        return false;
-      }
-    } catch (error) {
-      console.error("❌ Error cancelling subscription:", error);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+    if (a !== b) {
+      console.error(`❌ ITN amount mismatch: expected ${a / 100}, received ${b / 100}`);
       return false;
     }
+    return true;
   }
 
-  /**
-   * Query subscription status via PayFast API
-   */
-  async querySubscriptionStatus(token: string): Promise<any> {
-    try {
-      const url = this.isSandbox
-        ? `https://sandbox.payfast.co.za/eng/recurring/fetch/${token}`
-        : `https://www.payfast.co.za/eng/recurring/fetch/${token}`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "merchant-id": this.config.merchantId,
-          version: "v1",
-          timestamp: new Date().toISOString(),
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`✅ Subscription status fetched for ${token}`);
-        return data;
-      } else {
-        console.error(`❌ Failed to fetch subscription status:`, response.statusText);
-        return null;
-      }
-    } catch (error) {
-      console.error("❌ Error querying subscription:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Get PayFast payment gateway URL
-   */
+  /** Where the payment form should be POSTed. */
   getPaymentUrl(): string {
     return this.config.baseUrl;
   }
 
-  /**
-   * Check if running in sandbox mode
-   */
   isSandboxMode(): boolean {
     return this.isSandbox;
   }
 }
 
-// Export singleton instance
-export const payfastService = new PayFastService();
+/**
+ * Lazily constructed singleton: the service throws when credentials are
+ * missing, so it must not be built at import time or an unconfigured
+ * deployment would crash at boot.
+ */
+let instance: PayFastService | null = null;
+
+export function getPayFastService(): PayFastService {
+  if (!instance) instance = new PayFastService();
+  return instance;
+}

@@ -13,7 +13,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { AddressAutocomplete, type AddressData } from "@/components/ui/address-autocomplete";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, AlertCircle, Plus, MessageSquare } from "lucide-react";
+import { DollarSign, AlertCircle, Plus, MessageSquare, CreditCard } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -513,6 +513,15 @@ export default function SettingsPage() {
   // Track if there are unsaved changes
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Whether the SERVER has PayFast credentials. The owner controls whether to
+  // offer online payment; only the deployer can supply the merchant keys.
+  const { data: paymentStatus } = useQuery<{
+    credentialsConfigured: boolean;
+    sandbox: boolean;
+  }>({
+    queryKey: ["/api/payments/config-status"],
+  });
+
   // State for business data, including new deposit policy fields
   const [businessData, setBusinessData] = useState({
     businessName: business?.businessName || "",
@@ -559,6 +568,9 @@ export default function SettingsPage() {
     whatsappOverageAllowed: business?.whatsappOverageAllowed || false,
     // Deposit Policy Fields
     requireDepositByDefault: business?.requireDepositByDefault || false,
+    onlinePaymentsEnabled: business?.onlinePaymentsEnabled || false,
+    acceptInvoicePayments: business?.acceptInvoicePayments !== false,
+    acceptDepositPayments: business?.acceptDepositPayments !== false,
     defaultDepositPercentage: business?.defaultDepositPercentage || 30,
     depositCancellationMode: business?.depositCancellationMode || "manual",
     depositCancellationThresholdHours: business?.depositCancellationThresholdHours || 48,
@@ -627,7 +639,7 @@ export default function SettingsPage() {
             <TabsTrigger value="calendar" className="whitespace-nowrap">Calendar</TabsTrigger>
             <TabsTrigger value="deposit" className="whitespace-nowrap">Deposit</TabsTrigger>
             <TabsTrigger value="whatsapp" className="whitespace-nowrap">WhatsApp</TabsTrigger>
-            <TabsTrigger value="domain" className="whitespace-nowrap">Domain</TabsTrigger>
+            <TabsTrigger value="payments" className="whitespace-nowrap">Payments</TabsTrigger>
             <TabsTrigger value="account" className="whitespace-nowrap">Account</TabsTrigger>
           </TabsList>
         </div>
@@ -1871,8 +1883,106 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="domain" className="space-y-4" style={pageStyle}>
-          <CustomDomainTab />
+        <TabsContent value="payments" className="space-y-4" style={pageStyle}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Online Payments
+              </CardTitle>
+              <CardDescription>
+                Let customers pay invoices and deposits online by card or EFT via PayFast.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Whether PayFast keys are present on the server. The owner
+                  cannot fix this from here, so say so plainly. */}
+              {paymentStatus && !paymentStatus.credentialsConfigured && (
+                <div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                  <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium">PayFast is not connected yet</p>
+                    <p className="mt-1">
+                      Your PayFast merchant details need to be added to the server
+                      configuration before online payments can go live. Ask whoever
+                      set up your site to add them. You can still switch this on now —
+                      it will start working as soon as they are added.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Accept online payments</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Shows a "Pay now" button to your customers. Turn this off to take
+                    payment by EFT or in person instead.
+                  </p>
+                </div>
+                <Switch
+                  checked={businessData.onlinePaymentsEnabled || false}
+                  onCheckedChange={(checked) => {
+                    setBusinessData({ ...businessData, onlinePaymentsEnabled: checked as boolean });
+                  }}
+                  data-testid="switch-online-payments"
+                />
+              </div>
+
+              {businessData.onlinePaymentsEnabled && (
+                <div className="space-y-6 border-l-2 pl-4 ml-1">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Invoices</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Customers can pay an invoice online.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={businessData.acceptInvoicePayments !== false}
+                      onCheckedChange={(checked) => {
+                        setBusinessData({ ...businessData, acceptInvoicePayments: checked as boolean });
+                      }}
+                      data-testid="switch-invoice-payments"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Deposits</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Customers can pay a booking deposit online to secure their slot.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={businessData.acceptDepositPayments !== false}
+                      onCheckedChange={(checked) => {
+                        setBusinessData({ ...businessData, acceptDepositPayments: checked as boolean });
+                      }}
+                      data-testid="switch-deposit-payments"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {paymentStatus?.sandbox && paymentStatus.credentialsConfigured && (
+                <p className="text-sm text-muted-foreground">
+                  PayFast is in <strong>sandbox</strong> mode — payments are simulated,
+                  no real money moves. Switch the server to live mode when you are ready
+                  to take real payments.
+                </p>
+              )}
+
+              <Button
+                onClick={() => updateBusinessMutation.mutate(businessData)}
+                disabled={updateBusinessMutation.isPending}
+                style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
+                data-testid="button-save-payments"
+              >
+                {updateBusinessMutation.isPending ? "Saving..." : "Save Payment Settings"}
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="account" className="space-y-4" style={pageStyle}>

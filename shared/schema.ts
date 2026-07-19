@@ -146,6 +146,16 @@ export const businesses = pgTable("businesses", {
   depositReminderHours: jsonb("deposit_reminder_hours").$type<number[]>().default([48, 24, 12]),
   requireDepositByDefault: boolean("require_deposit_by_default").default(false),
   defaultDepositPercentage: decimal("default_deposit_percentage", { precision: 5, scale: 2 }).default("30.00"),
+
+  // Online payments (PayFast).
+  // The owner switches this on from Dashboard -> Settings -> Payments; the
+  // merchant credentials still come from the server environment, so the admin
+  // UI never handles secrets. Payments only go live when BOTH are true:
+  // this toggle is on AND the server has credentials configured.
+  onlinePaymentsEnabled: boolean("online_payments_enabled").default(false),
+  // Which payments customers may make online.
+  acceptInvoicePayments: boolean("accept_invoice_payments").default(true),
+  acceptDepositPayments: boolean("accept_deposit_payments").default(true),
   addressLatitude: decimal("address_latitude", { precision: 10, scale: 8 }),
   addressLongitude: decimal("address_longitude", { precision: 11, scale: 8 }),
   

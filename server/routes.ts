@@ -1,5 +1,7 @@
 import bcrypt from "bcrypt";
 import { getPublicBaseUrl, isGoogleAuthConfigured, features } from "./config";
+import { PayFastService, getPayFastService } from "./services/payfast.service";
+import { getCurrentBusiness } from "./current-business";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -2289,6 +2291,233 @@ ${aiResult.reasoning}`,
       console.error("Get public invoice error:", error);
       res.status(500).json({ message: "Failed to get invoice" });
     }
+  });
+
+  // ============================================================================
+  // PAYMENTS (PayFast, once-off)
+  //
+  // Online payment is live only when BOTH are true:
+  //   - the owner enabled it in Dashboard -> Settings -> Payments, and
+  //   - the server has PayFast credentials in its environment.
+  // Credentials never touch the database or the admin UI.
+  // ============================================================================
+
+  /**
+   * Admin-only: whether the SERVER has PayFast credentials, so Settings can
+   * explain that payments will not go live until they are added. Reports
+   * presence only — never the credentials themselves.
+   */
+  app.get('/api/payments/config-status', requireAuth, attachBusinessContext, (_req: Request, res: Response) => {
+    res.json({
+      credentialsConfigured: PayFastService.isConfigured(),
+      sandbox: process.env.PAYFAST_MODE !== 'live',
+    });
+  });
+
+  /** Whether the public payment button should be shown. */
+  app.get('/api/public/payments/status', async (_req: Request, res: Response) => {
+    try {
+      const business = await getCurrentBusiness();
+      const credentialsPresent = PayFastService.isConfigured();
+
+      res.json({
+        enabled: Boolean(business.onlinePaymentsEnabled) && credentialsPresent,
+        acceptInvoicePayments: business.acceptInvoicePayments !== false,
+        acceptDepositPayments: business.acceptDepositPayments !== false,
+      });
+    } catch (error) {
+      console.error("Payment status error:", error);
+      res.json({ enabled: false, acceptInvoicePayments: false, acceptDepositPayments: false });
+    }
+  });
+
+  /**
+   * Build a signed PayFast form for an invoice. Public, but requires the
+   * invoice's unguessable token — the same gate as viewing it.
+   */
+  app.post('/api/public/payments/invoice/:id', async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { token } = req.query;
+
+      if (!token) {
+        return res.status(401).json({ message: "Access token required" });
+      }
+
+      const business = await getCurrentBusiness();
+
+      if (!business.onlinePaymentsEnabled) {
+        return res.status(403).json({ message: "Online payments are not enabled for this business." });
+      }
+      if (business.acceptInvoicePayments === false) {
+        return res.status(403).json({ message: "Online invoice payment is not available." });
+      }
+      if (!PayFastService.isConfigured()) {
+        console.error("Online payments are enabled but PayFast credentials are missing.");
+        return res.status(503).json({ message: "Online payment is temporarily unavailable." });
+      }
+
+      const invoice = await storage.getInvoice(id, '');
+      if (!invoice || invoice.publicToken !== token) {
+        return res.status(404).json({ message: "Invoice not found or invalid token" });
+      }
+      if (invoice.status === 'paid') {
+        return res.status(409).json({ message: "This invoice has already been paid." });
+      }
+
+      // Trust the stored total, never an amount supplied by the client.
+      const amountDue = parseFloat(String(invoice.totalAmount ?? '0'));
+      if (!Number.isFinite(amountDue) || amountDue <= 0) {
+        return res.status(400).json({ message: "This invoice has no amount payable." });
+      }
+
+      const contact = await storage.getContact(invoice.contactId, invoice.businessId);
+      const [firstName, ...restName] = (contact?.fullName || '').split(' ');
+
+      const payfast = getPayFastService();
+      const formData = payfast.createPaymentForm({
+        paymentId: invoice.id,
+        amount: amountDue,
+        itemName: `Invoice ${invoice.invoiceNumber}`,
+        itemDescription: `Payment for invoice ${invoice.invoiceNumber} — ${business.businessName}`,
+        customerFirstName: firstName || undefined,
+        customerLastName: restName.join(' ') || undefined,
+        customerEmail: contact?.email || undefined,
+        paymentType: invoice.invoiceType === 'deposit' ? 'deposit' : 'invoice',
+        invoiceId: invoice.id,
+        jobId: invoice.jobId || undefined,
+      });
+
+      res.json({ paymentUrl: payfast.getPaymentUrl(), formData });
+    } catch (error) {
+      console.error("Create invoice payment error:", error);
+      res.status(500).json({ message: "Failed to start payment" });
+    }
+  });
+
+  /**
+   * PayFast ITN webhook — the only trustworthy signal that money moved.
+   *
+   * Hardened per PayFast's guidance: source IP, signature, and amount are all
+   * verified before anything is marked paid. Always returns 200 so PayFast
+   * does not retry indefinitely on a request we have deliberately rejected.
+   */
+  app.post('/api/payments/webhook/payfast', async (req: Request, res: Response) => {
+    // Acknowledge immediately; process after.
+    res.status(200).send('OK');
+
+    try {
+      const data = req.body as Record<string, string>;
+      const sourceIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip || '';
+
+      if (!PayFastService.isConfigured()) {
+        console.error("Received a PayFast ITN but no credentials are configured. Ignoring.");
+        return;
+      }
+
+      const payfast = getPayFastService();
+
+      if (!payfast.validateITNIP(sourceIp)) {
+        console.error(`Rejected ITN from unauthorised IP: ${sourceIp}`);
+        return;
+      }
+      if (!payfast.validateITNSignature(data)) {
+        console.error("Rejected ITN with an invalid signature.");
+        return;
+      }
+      if (data.payment_status !== 'COMPLETE') {
+        console.log(`Ignoring ITN with payment_status=${data.payment_status}`);
+        return;
+      }
+
+      const invoiceId = data.custom_str2 || data.m_payment_id;
+      if (!invoiceId) {
+        console.error("ITN carried no invoice reference.");
+        return;
+      }
+
+      const invoice = await storage.getInvoice(invoiceId, '');
+      if (!invoice) {
+        console.error(`ITN referenced unknown invoice ${invoiceId}`);
+        return;
+      }
+
+      // The amount check is what stops a tampered ITN settling a large
+      // invoice for a trivial sum.
+      if (!payfast.validateAmount(invoice.totalAmount ?? '0', data.amount_gross)) {
+        console.error(`Rejected ITN for invoice ${invoiceId}: amount mismatch.`);
+        return;
+      }
+
+      // PayFast can deliver the same ITN more than once.
+      const existing = await storage.getPaymentTransactionsByInvoice(invoice.id, invoice.businessId);
+      if (existing?.some((t) => t.transactionId === data.pf_payment_id)) {
+        console.log(`Ignoring duplicate ITN for transaction ${data.pf_payment_id}`);
+        return;
+      }
+
+      // Build the row explicitly with plain values: the raw ITN body can carry
+      // null/undefined entries that the query builder cannot serialise.
+      await storage.createPaymentTransaction({
+        businessId: invoice.businessId,
+        invoiceId: invoice.id,
+        transactionId: String(data.pf_payment_id ?? ''),
+        amount: String(data.amount_gross),
+        currency: 'ZAR',
+        paymentMethod: 'card',
+        status: 'completed',
+        gateway: 'payfast',
+        gatewayResponse: JSON.parse(JSON.stringify(data)),
+        processedAt: new Date(),
+      } as any);
+
+      await storage.updateInvoice(invoice.id, invoice.businessId, {
+        status: 'paid',
+        paidAt: new Date(),
+      } as any);
+
+      // A paid deposit releases the job to be scheduled.
+      if (data.custom_str1 === 'deposit' && invoice.jobId) {
+        await storage.updateJob(invoice.jobId, invoice.businessId, {
+          depositPaid: true,
+          depositPaidAt: new Date(),
+          status: 'scheduled',
+        } as any);
+
+        await ActivityLogger.depositPaid(
+          invoice.businessId,
+          invoice.jobId,
+          invoice.contactId,
+          parseFloat(String(data.amount_gross))
+        );
+      }
+
+      await ActivityLogger.log({
+        businessId: invoice.businessId,
+        contactId: invoice.contactId,
+        action: 'payment_received',
+        entityType: 'invoice',
+        entityId: invoice.id,
+        changes: {
+          amount: data.amount_gross,
+          gateway: 'payfast',
+          transactionId: data.pf_payment_id,
+        },
+      });
+
+      console.log(`✅ Payment recorded for invoice ${invoice.invoiceNumber} (${data.amount_gross})`);
+    } catch (error) {
+      console.error("PayFast ITN processing error:", error);
+    }
+  });
+
+  // Customer lands here after paying. The ITN is authoritative, not this.
+  app.get('/api/payments/return', (_req: Request, res: Response) => {
+    res.redirect('/payment/success');
+  });
+
+  app.get('/api/payments/cancel', (_req: Request, res: Response) => {
+    res.redirect('/payment/cancelled');
   });
 
   // Request password reset
