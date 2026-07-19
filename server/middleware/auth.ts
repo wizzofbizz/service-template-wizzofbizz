@@ -11,18 +11,11 @@ declare module 'express-session' {
   }
 }
 
-// Extend Express Request to include user context
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        businessId: string;
-        role: 'owner' | 'admin' | 'technician';
-      };
-    }
-  }
-}
+// NOTE: `Express.User` (and therefore `Request.user`) is declared in
+// server/googleAuth.ts, which is the fuller/canonical shape because Passport
+// populates it. This module deliberately does NOT re-declare it — a second,
+// narrower declaration produced TS2717 ("subsequent property declarations must
+// have the same type").
 
 /**
  * requireAuth - Ensures user is authenticated
@@ -64,10 +57,20 @@ export async function attachBusinessContext(req: Request, res: Response, next: N
     }
 
     if (req.session?.userId) {
+      // Session-based (email/password) login. Passport is not involved here, so
+      // we synthesise the Express.User shape from the session. Only id /
+      // businessId / role are actually known at this point; the remaining
+      // fields are declared on Express.User (see server/googleAuth.ts) and are
+      // filled with nulls rather than triggering an extra DB round-trip.
       req.user = {
         id: req.session.userId,
         businessId,
-        role: req.session.role || 'owner'
+        role: req.session.role || 'owner',
+        email: null,
+        firstName: null,
+        lastName: null,
+        profileImageUrl: null,
+        isActive: true,
       };
     }
 
@@ -102,7 +105,10 @@ export function requireRole(...allowedRoles: Array<'owner' | 'admin' | 'technici
       });
     }
     
-    if (!allowedRoles.includes(req.user.role)) {
+    // Express.User declares `role` as a plain string (it comes from the DB),
+    // so widen the allowed list for the membership check instead of narrowing
+    // the value — behaviour is identical.
+    if (!(allowedRoles as string[]).includes(req.user.role)) {
       return res.status(403).json({ 
         message: "Insufficient permissions for this action" 
       });

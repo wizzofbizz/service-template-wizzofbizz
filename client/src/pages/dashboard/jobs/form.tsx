@@ -36,6 +36,8 @@ interface Contact {
 interface Quote {
   id: string;
   quoteNumber: string;
+  title?: string | null;
+  locationAddress?: string | null;
   contactId: string;
   status: string;
   totalAmount: string;

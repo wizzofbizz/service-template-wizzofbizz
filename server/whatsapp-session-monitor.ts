@@ -4,6 +4,7 @@
  */
 
 import { storage } from "./storage";
+import { getPublicBaseUrl } from "./config";
 
 /**
  * Detect and handle expired sessions

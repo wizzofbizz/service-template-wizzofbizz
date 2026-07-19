@@ -73,7 +73,8 @@ async function seed() {
       businessId: business.id,
       email: "demo@example.com",
       passwordHash,
-      fullName: "Demo User",
+      firstName: "Demo",
+      lastName: "User",
       role: "owner",
     }).returning();
 

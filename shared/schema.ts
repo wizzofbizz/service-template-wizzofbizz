@@ -489,7 +489,10 @@ export const jobs = pgTable("jobs", {
   customerPhone: varchar("customer_phone", { length: 50 }),
   depositPaid: boolean("deposit_paid").default(false),
   depositPaidAt: timestamp("deposit_paid_at"),
-  depositInvoiceId: uuid("deposit_invoice_id").references(() => invoices.id),
+  // Typed explicitly to break the jobs <-> invoices reference cycle.
+  // Without the annotation TypeScript cannot infer either table (TS7022) and
+  // both degrade to `any`, which cascaded into ~150 downstream errors.
+  depositInvoiceId: uuid("deposit_invoice_id").references((): any => invoices.id),
   depositDeadline: timestamp("deposit_deadline"),
   depositRemindersSent: integer("deposit_reminders_sent").default(0),
   lastDepositReminderAt: timestamp("last_deposit_reminder_at"),
@@ -591,7 +594,8 @@ export const invoices = pgTable("invoices", {
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),
   balanceDue: decimal("balance_due", { precision: 10, scale: 2 }),
-  linkedDepositInvoiceId: uuid("linked_deposit_invoice_id").references(() => invoices.id),
+  // Self-reference: annotated for the same reason as jobs.depositInvoiceId.
+  linkedDepositInvoiceId: uuid("linked_deposit_invoice_id").references((): any => invoices.id),
   notes: text("notes"),
   publicToken: text("public_token").unique(),
   remindersSent: integer("reminders_sent").default(0),

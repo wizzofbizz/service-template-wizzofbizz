@@ -153,7 +153,12 @@ export default function CalendarPage() {
       return {};
     }
 
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'lowercase' }) as 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+    // 'lowercase' is not a valid Intl weekday value — it threw a RangeError,
+    // so working-hours shading never rendered. Use 'long' and lowercase it to
+    // match the calendarHours keys.
+    const dayName = date
+      .toLocaleDateString('en-US', { weekday: 'long' })
+      .toLowerCase() as 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
     const dayHours = businessData.calendarHours[dayName];
 
     if (!dayHours) {

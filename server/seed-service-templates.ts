@@ -22,8 +22,9 @@ async function seedServiceTemplates() {
     let totalInserted = 0;
 
     for (const business of businesses) {
+      // industry is nullable on the businesses table.
       const industry = business.industry;
-      const templates = INDUSTRY_SERVICE_TEMPLATES[industry];
+      const templates = industry ? INDUSTRY_SERVICE_TEMPLATES[industry] : undefined;
 
       if (!templates || templates.length === 0) {
         console.log(`⚠️  No templates found for industry: ${industry}`);

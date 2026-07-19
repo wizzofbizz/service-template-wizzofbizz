@@ -164,7 +164,7 @@ export default function Contact360Page() {
 
   // Group activities by type for timeline
   const timelineEvents = activities
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
     .slice(0, 50);
 
   // Calculate lifecycle milestones
@@ -270,7 +270,7 @@ export default function Contact360Page() {
                 <h1 className="text-2xl md:text-3xl font-bold mb-2">{contact.fullName}</h1>
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <Badge className="capitalize">
-                    {contact.contactType.replace("_", " ")}
+                    {(contact.contactType ?? "").replace("_", " ")}
                   </Badge>
                   {contact.leadSource && (
                     <Badge variant="outline">{contact.leadSource}</Badge>
@@ -401,7 +401,7 @@ export default function Contact360Page() {
                           <p className="text-xs text-muted-foreground mb-1">
                             {milestone.date ? formatDateSA(milestone.date) : "Pending"}
                           </p>
-                          {milestone.details && (
+                          {Boolean(milestone.details) && (
                             <p className="text-xs text-muted-foreground line-clamp-2">
                               {typeof milestone.details === "string"
                                 ? milestone.details
@@ -488,7 +488,7 @@ export default function Contact360Page() {
                                 {activity.entityType}
                               </Badge>
                             </div>
-                            {activity.changes && (
+                            {Boolean(activity.changes) && (
                               <details className="text-xs text-muted-foreground mt-1">
                                 <summary className="cursor-pointer hover:text-foreground">
                                   View details

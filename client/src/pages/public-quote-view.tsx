@@ -23,6 +23,7 @@ interface QuoteData {
     discountAmount: string;
     totalAmount: string;
     notes: string;
+    locationAddress?: string | null;
     createdAt: string;
     latestVersionId?: string;
     requiresDeposit?: boolean;

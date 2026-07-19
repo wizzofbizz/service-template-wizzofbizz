@@ -568,7 +568,10 @@ export default function InsightsPage() {
                       data={funnelData.map((stage) => ({
                         id: stage.stage,
                         value: stage.count,
-                        label: `${stage.stage} (${stage.count})`,
+                        // Nivo reads `label` off the datum. A `label` render
+                        // callback was previously passed as a prop, which the
+                        // component ignores, so the value never appeared.
+                        label: `${stage.stage} (${stage.count}) · ${formatCurrency(stage.value)}`,
                       }))}
                       margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
                       valueFormat=" >-.0f"
@@ -592,11 +595,6 @@ export default function InsightsPage() {
                             fontWeight: 700
                           }
                         }
-                      }}
-                      label={(data) => {
-                        const stage = funnelData.find(s => s.stage === data.id);
-                        if (!stage) return `${data.value}`;
-                        return `${data.value}\n${formatCurrency(stage.value)}`;
                       }}
                     />
                   </div>

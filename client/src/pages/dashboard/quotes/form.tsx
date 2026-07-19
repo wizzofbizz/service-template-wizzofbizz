@@ -963,9 +963,9 @@ export default function QuoteFormPage() {
                           </div>
                         )}
                       </td>
-                      <td className="py-3 text-right text-gray-700">{parseFloat(item.quantity).toFixed(2)}</td>
-                      <td className="py-3 text-right text-gray-700">{formatCurrency(parseFloat(item.unitPrice))}</td>
-                      <td className="py-3 text-right font-medium text-gray-900">{formatCurrency(parseFloat(item.amount))}</td>
+                      <td className="py-3 text-right text-gray-700">{item.quantity.toFixed(2)}</td>
+                      <td className="py-3 text-right text-gray-700">{formatCurrency(item.unitPrice)}</td>
+                      <td className="py-3 text-right font-medium text-gray-900">{formatCurrency(item.amount)}</td>
                     </tr>
                   );
                 })}

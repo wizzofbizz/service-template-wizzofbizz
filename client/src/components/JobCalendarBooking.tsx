@@ -18,6 +18,7 @@ interface JobCalendarBookingProps {
 }
 
 interface Business {
+  id: string;
   calendarHours: {
     monday: { start: string; end: string } | null;
     tuesday: { start: string; end: string } | null;

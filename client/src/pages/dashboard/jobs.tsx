@@ -559,7 +559,7 @@ export default function JobsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                              {(job.status === "draft" || job.status === "scheduled" || job.status === "pending_deposit") && (
+                              {(job.status === "scheduled" || job.status === "pending_deposit") && (
                                 <DropdownMenuItem onClick={() => setLocation(`/dashboard/jobs/${job.id}/edit`)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit Job
@@ -774,7 +774,7 @@ export default function JobsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                              {(job.status === "draft" || job.status === "scheduled" || job.status === "pending_deposit") && (
+                              {(job.status === "scheduled" || job.status === "pending_deposit") && (
                                 <DropdownMenuItem onClick={() => setLocation(`/dashboard/jobs/${job.id}/edit`)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit Job

@@ -67,11 +67,13 @@ async function submitTemplates() {
       const contentTemplate = await client.content.v1.contents.create({
         friendlyName: template.friendlyName,
         language: template.language,
+        // 'twilio/text' is a valid Twilio Content API content type, but the
+        // SDK's `Types` interface does not declare it, so it has to be cast.
         types: {
           'twilio/text': {
             body: template.body
           }
-        }
+        } as unknown as ContentTypes
       });
 
       console.log(`✅ Template submitted successfully!`);

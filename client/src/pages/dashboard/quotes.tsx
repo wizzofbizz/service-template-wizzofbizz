@@ -56,6 +56,7 @@ type QuoteStatus = "draft" | "ai_quote" | "sent" | "viewed" | "accepted" | "depo
 interface Quote {
   id: string;
   quoteNumber: string;
+  title?: string | null;
   contactId: string;
   contactName?: string;
   contactEmail?: string;
@@ -815,7 +816,7 @@ export default function QuotesPage() {
                 </div>
 
                 {/* Decline Reason (if applicable) */}
-                {selectedQuote.status === 'rejected' && selectedQuote.declineReason && (
+                {selectedQuote.status === 'declined' && selectedQuote.declineReason && (
                   <div>
                     <h3 className="text-sm font-semibold mb-3">Decline Reason</h3>
                     <p className="text-sm text-muted-foreground">{selectedQuote.declineReason}</p>

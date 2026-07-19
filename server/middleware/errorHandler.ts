@@ -23,7 +23,9 @@ export function errorHandler(
   next: NextFunction
 ) {
   // Payload too large errors
-  if (err.type === 'entity.too.large') {
+  // `type` is set by body-parser (e.g. 'entity.too.large'); it is not part of
+  // the base Error shape, so read it defensively.
+  if ((err as { type?: string }).type === 'entity.too.large') {
     return res.status(413).json({
       message: "File or request too large. Maximum upload size is 50MB total."
     });

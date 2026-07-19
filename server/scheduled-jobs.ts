@@ -4,18 +4,11 @@ import { storage } from "./storage";
 import { processEmailQueue } from "./email";
 import { getQuoteSentTemplate, getJobConfirmationTemplate } from "./email-templates";
 
-interface Business {
-  id: string;
-  businessName: string;
-  senderName?: string | null;
-  senderEmail?: string | null;
-  senderEmailVerified?: boolean | null;
-  phone?: string | null;
-  email?: string | null;
-  quoteFollowupDays?: number | null;
-  jobReminderDays?: number[] | null;
-  paymentReminderDays?: number[] | null;
-}
+// Use the real row type from the schema rather than a hand-written partial
+// stand-in. The local interface was missing columns this file actually reads
+// (depositReminderHours, depositCancellationMode) and was structurally
+// incompatible with what storage.getBusiness() returns.
+import type { Business } from "@shared/schema";
 
 // Track sent reminders to avoid duplicates within the same day
 const sentRemindersToday = new Set<string>();
@@ -198,7 +191,7 @@ async function processJobReminders(business: Business) {
                 contactId: contact.id,
                 toNumber: contact.phone,
                 templateName: 'job_reminder_whatsapp',
-                messageBody: `Reminder: Your appointment ${job.jobNumber} is scheduled for ${scheduledDateObj.toLocaleDateString()} at ${scheduledTime}.\n\nAddress: ${job.locationAddress || 'TBD'}\n\nSee you soon!\n- ${business.businessName}`,
+                messageBody: `Reminder: Your appointment ${job.jobNumber} is scheduled for ${scheduledDate.toLocaleDateString()} at ${scheduledTime}.\n\nAddress: ${job.locationAddress || 'TBD'}\n\nSee you soon!\n- ${business.businessName}`,
                 relatedType: 'job',
                 relatedId: job.id,
               });

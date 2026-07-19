@@ -28,6 +28,18 @@ const contactFormSchema = z.object({
 
 type ContactFormValues = z.infer<typeof contactFormSchema>;
 
+// preferredChannel is a plain varchar in the DB, so it comes back typed as a wide
+// `string`. Narrow it to the form's union, falling back to the same "email"
+// default the form already used.
+const PREFERRED_CHANNELS = ["email", "whatsapp", "both"] as const;
+type PreferredChannel = (typeof PREFERRED_CHANNELS)[number];
+
+function toPreferredChannel(value: string | null | undefined): PreferredChannel {
+  return PREFERRED_CHANNELS.includes(value as PreferredChannel)
+    ? (value as PreferredChannel)
+    : "email";
+}
+
 interface ContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -46,10 +58,10 @@ export function ContactDialog({ open, onOpenChange, contact, onContactCreated }:
       email: contact?.email || "",
       phone: contact?.phone || "",
       address: contact?.address || "",
-      contactType: contact?.contactType || "lead",
+      contactType: contact?.contactType ?? "lead",
       leadSource: contact?.leadSource || undefined,
       notes: contact?.notes || "",
-      preferredChannel: contact?.preferredChannel || "email",
+      preferredChannel: toPreferredChannel(contact?.preferredChannel),
       whatsappOptIn: contact?.whatsappOptIn || false,
     },
   });
@@ -62,10 +74,10 @@ export function ContactDialog({ open, onOpenChange, contact, onContactCreated }:
         email: contact.email || "",
         phone: contact.phone || "",
         address: contact.address || "",
-        contactType: contact.contactType,
+        contactType: contact.contactType ?? "lead",
         leadSource: contact.leadSource || undefined,
         notes: contact.notes || "",
-        preferredChannel: contact.preferredChannel || "email",
+        preferredChannel: toPreferredChannel(contact.preferredChannel),
         whatsappOptIn: contact.whatsappOptIn || false,
       });
     } else if (open && !contact) {
@@ -127,7 +139,7 @@ export function ContactDialog({ open, onOpenChange, contact, onContactCreated }:
       }
       return res.json();
     },
-    onSuccess: (updatedContact) => {
+    onSuccess: (updatedContact: Contact) => {
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Contact updated successfully" });
@@ -138,10 +150,10 @@ export function ContactDialog({ open, onOpenChange, contact, onContactCreated }:
         email: updatedContact.email || "",
         phone: updatedContact.phone || "",
         address: updatedContact.address || "",
-        contactType: updatedContact.contactType,
+        contactType: updatedContact.contactType ?? "lead",
         leadSource: updatedContact.leadSource || undefined,
         notes: updatedContact.notes || "",
-        preferredChannel: updatedContact.preferredChannel || "email",
+        preferredChannel: toPreferredChannel(updatedContact.preferredChannel),
         whatsappOptIn: updatedContact.whatsappOptIn || false,
       });
       

@@ -22,6 +22,8 @@ type Job = {
   id: string;
   jobNumber: string;
   title: string;
+  description?: string | null;
+  locationAddress?: string | null;
   contactId: string;
   items?: JobItem[];
 };

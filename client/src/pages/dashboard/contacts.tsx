@@ -64,7 +64,7 @@ export default function ContactsPage() {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const thisMonth = allContacts.filter(c => new Date(c.createdAt) >= startOfMonth);
+    const thisMonth = allContacts.filter(c => new Date(c.createdAt ?? 0) >= startOfMonth);
     const newLeads = thisMonth.filter(c => c.contactType === 'lead');
     const totalCustomers = allContacts.filter(c => c.contactType === 'customer').length;
     const conversionRate = allContacts.length > 0 
@@ -159,7 +159,7 @@ export default function ContactsPage() {
     setLocation(`/dashboard/contacts/${contact.id}`);
   };
 
-  const getTypeBadgeColor = (type: string) => {
+  const getTypeBadgeColor = (type: string | null) => {
     switch (type) {
       case "lead":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
@@ -172,7 +172,7 @@ export default function ContactsPage() {
     }
   };
 
-  const getTypeLabel = (type: string) => {
+  const getTypeLabel = (type: string | null) => {
     switch (type) {
       case "lead":
         return "Lead";
@@ -181,7 +181,7 @@ export default function ContactsPage() {
       case "past_customer":
         return "Past Customer";
       default:
-        return type;
+        return type ?? "";
     }
   };
 

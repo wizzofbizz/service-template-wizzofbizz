@@ -1,54 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Business as BusinessRow, User as UserRow } from "@shared/schema";
 
-interface User {
-  id: string;
-  email: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  businessId: string | null;
-  profileImageUrl: string | null;
-  role: string;
-}
-
-interface Business {
-  id: string;
-  businessName: string;
-  slug: string;
-  industry: string | null;
-  ownerName: string | null;
-  email: string;
-  phone: string | null;
-  addressLine1: string | null;
-  addressLine2: string | null;
-  city: string | null;
-  province: string | null;
-  postalCode: string | null;
-  businessDescription: string | null;
-  logoUrl: string | null;
-  primaryColor: string | null;
-  operatingHours: string | null;
-  facebookUrl: string | null;
-  instagramUrl: string | null;
-  whatsappNumber: string | null;
-  websiteUrl: string | null;
-  websiteStatus: string;
-  subscriptionStatus: string;
-  subscriptionTier: string;
-  vatNumber: string | null;
-  vatRate: string | null;
-  defaultPaymentDueDays: number | null;
-  paymentReminderDays: number[] | null;
-  senderEmail: string | null;
-  senderName: string | null;
-  senderEmailVerified: boolean | null;
-  businessWhatsapp: string | null;
-  whatsappWasenderApiKey: string | null;
-  whatsappProvider: string | null;
-  quoteFollowupDays: number[] | null;
-  jobReminderDays: number[] | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// These were previously hand-written copies of the DB row shapes and had drifted
+// out of sync with shared/schema.ts (missing booking, payment, deposit and
+// WhatsApp usage fields that /api/auth/me has been returning all along).
+// Derive them from the schema instead so they can't drift again.
+type User = UserRow;
+type Business = BusinessRow;
 
 interface AuthResponse {
   user: User;
