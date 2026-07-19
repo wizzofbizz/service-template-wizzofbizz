@@ -3,6 +3,7 @@ import { isAiConfigured } from "./config";
 import { GoogleGenerativeAI, Part } from "@google/generative-ai";
 import type { Service, ImageAnalysisConfig } from "../shared/schema";
 import { MaterialResolver } from "./material-resolver";
+import { evaluateFormula } from "./formula";
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -391,82 +392,59 @@ ${service.description ? `Description: ${service.description}` : ""}
    * Calculate final price using service pricing formula
    */
   private calculatePrice(service: Service, features: ExtractedFeatures): number {
+    const basePrice = parseFloat(service.basePrice || "0");
+
     try {
-      const ruleConfig = service.ruleConfig as Record<string, any> || {};
+      const ruleConfig = (service.ruleConfig as Record<string, any>) || {};
       const formula = service.pricingFormula;
 
-      if (!formula) {
-        // Fallback to base price
-        return parseFloat(service.basePrice || "0");
+      if (!formula) return basePrice;
+
+      // Numeric values only: the parser rejects anything else, and a stray
+      // string in ruleConfig should surface as a clear error rather than
+      // silently poisoning the price.
+      const numericRules: Record<string, number> = {};
+      for (const [key, value] of Object.entries(ruleConfig)) {
+        const asNumber = typeof value === "number" ? value : parseFloat(String(value));
+        if (Number.isFinite(asNumber)) numericRules[key] = asNumber;
       }
 
-      // Build evaluation context
-      const context: Record<string, any> = {
-        base_price: parseFloat(service.basePrice || "0"),
+      const context: Record<string, number> = {
+        base_price: basePrice,
         hours: features.hours || 0,
         km: features.km_distance || 0,
-        ...ruleConfig, // hourly_rate, travel_rate, etc.
+        ...numericRules, // hourly_rate, travel_rate, etc.
+
+        // Urgency and complexity multipliers are per-service, read from
+        // ruleConfig, because the right premium differs by trade — an
+        // emergency callout for a plumber is not the same as a rush booking
+        // at a salon. The defaults preserve the previous hardcoded values.
+        urgency_multiplier: pickMultiplier(features.urgency, {
+          high: numericRules.urgency_high ?? 1.5,
+          normal: numericRules.urgency_normal ?? 1.0,
+          low: numericRules.urgency_low ?? 0.9,
+        }),
+        complexity_multiplier: pickMultiplier(features.complexity, {
+          high: numericRules.complexity_complex ?? 1.3,
+          normal: numericRules.complexity_moderate ?? 1.0,
+          low: numericRules.complexity_simple ?? 0.8,
+        }),
       };
 
-      // Apply urgency multiplier
-      if (features.urgency === "high") {
-        context.urgency_multiplier = 1.5;
-      } else if (features.urgency === "low") {
-        context.urgency_multiplier = 0.9;
-      } else {
-        context.urgency_multiplier = 1.0;
-      }
-
-      // Apply complexity multiplier
-      if (features.complexity === "complex") {
-        context.complexity_multiplier = 1.3;
-      } else if (features.complexity === "simple") {
-        context.complexity_multiplier = 0.8;
-      } else {
-        context.complexity_multiplier = 1.0;
-      }
-
-      // Safely evaluate formula
-      const price = this.evaluateFormula(formula, context);
-      
-      return Math.max(0, price); // Ensure non-negative
+      const price = evaluateFormula(formula, context);
+      return Math.max(0, price);
     } catch (error) {
-      console.error("Price calculation error:", error);
-      return parseFloat(service.basePrice || "0");
+      // A broken formula must not fail the customer's quote request, but the
+      // owner needs to know their pricing rule is not being applied.
+      console.error(
+        `⚠️  Pricing formula for "${service.serviceName}" could not be applied, ` +
+        `falling back to the base price. Fix it under Services. Reason:`,
+        error instanceof Error ? error.message : error
+      );
+      return basePrice;
     }
   }
 
-  /**
-   * Safely evaluate pricing formula
-   */
-  private evaluateFormula(formula: string, context: Record<string, any>): number {
-    try {
-      // Replace variables in formula (longest first to avoid partial replacements)
-      let evalFormula = formula;
-      const sortedKeys = Object.keys(context).sort((a, b) => b.length - a.length);
-      
-      sortedKeys.forEach(key => {
-        // Use word boundary regex to match whole variable names only
-        const regex = new RegExp(`\\b${key}\\b`, 'g');
-        evalFormula = evalFormula.replace(regex, context[key].toString());
-      });
-
-      // Basic math operations only (safe evaluation)
-      // Allow digits, operators, parentheses, decimal points, and whitespace
-      const allowedChars = /^[0-9+\-*/().e \t]+$/;
-      if (!allowedChars.test(evalFormula)) {
-        console.error("Formula contains invalid characters after substitution:", evalFormula);
-        throw new Error("Invalid formula characters");
-      }
-
-      return eval(evalFormula);
-    } catch (error) {
-      console.error("Formula evaluation error:", error);
-      console.error("Original formula:", formula);
-      console.error("Context:", context);
-      return context.base_price || 0;
-    }
-  }
 
   /**
    * Analyze uploaded images using Gemini Vision to extract service-relevant details
@@ -644,3 +622,16 @@ ${Object.entries(ruleConfig).map(([key, value]) => `- ${key}: ${value}`).join("\
 }
 
 export const aiQuoteService = new AIQuoteService();
+
+/**
+ * Maps a qualitative feature ("high" / "normal" / "low") to its multiplier.
+ * Kept outside the class so the mapping is easy to read and test.
+ */
+function pickMultiplier(
+  level: string | undefined,
+  values: { high: number; normal: number; low: number }
+): number {
+  if (level === "high" || level === "complex") return values.high;
+  if (level === "low" || level === "simple") return values.low;
+  return values.normal;
+}
