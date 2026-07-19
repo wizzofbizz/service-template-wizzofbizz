@@ -536,8 +536,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const slotInterval = business.timeSlotIntervalMinutes || 15;
 
       // Calculate available slots
-      const { AvailabilityService } = await import('./availability-service');
-      const allSlots = AvailabilityService.getAvailableSlots(
+      const { AvailabilityService, filterByExternalBusy } = await import('./availability-service');
+      const rawSlots = AvailabilityService.getAvailableSlots(
         calendarHours,
         jobs,
         visitDuration,
@@ -546,6 +546,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startDate,
         endDate
       );
+
+      // Also drop anything the owner is already busy with in Google Calendar.
+      // No-op when calendar sync is off or unreachable.
+      const allSlots = await filterByExternalBusy(rawSlots, visitDuration);
 
       // Filter slots to remove those that violate minimum notice
       const filteredSlots: Record<string, string[]> = {};
@@ -2333,6 +2337,20 @@ ${aiResult.reasoning}`,
   // POST /api/public/quotes/:id/book and is unaffected.
   // ============================================================================
 
+  /**
+   * Admin: check Google Calendar connectivity. Returns a message written for
+   * a non-technical owner, and never exposes credentials.
+   */
+  app.get('/api/calendar/status', requireAuth, attachBusinessContext, async (_req: Request, res: Response) => {
+    try {
+      const { testConnection } = await import('./google-calendar');
+      res.json(await testConnection());
+    } catch (error) {
+      console.error("Calendar status check failed:", error);
+      res.json({ ok: false, message: "Could not check the calendar connection." });
+    }
+  });
+
   /** Tells the public site which booking flow to render. */
   app.get('/api/public/booking-mode', async (_req: Request, res: Response) => {
     try {
@@ -2425,8 +2443,8 @@ ${aiResult.reasoning}`,
 
       const serviceDuration = service.durationMinutes || business.quoteVisitDurationMinutes || 60;
 
-      const { AvailabilityService } = await import('./availability-service');
-      const availability = AvailabilityService.getAvailableSlots(
+      const { AvailabilityService, filterByExternalBusy } = await import('./availability-service');
+      const rawAvailability = AvailabilityService.getAvailableSlots(
         calendarHours,
         existingJobs,
         serviceDuration,
@@ -2435,6 +2453,11 @@ ${aiResult.reasoning}`,
         dayStart,
         dayEnd
       );
+
+      // Respect Google Calendar busy times here too, so a slot the owner is
+      // already committed to cannot be booked even if the customer's list
+      // was fetched before that commitment appeared.
+      const availability = await filterByExternalBusy(rawAvailability, serviceDuration);
 
       const slotsForDay: string[] = availability[date] || [];
       if (!slotsForDay.includes(time)) {
@@ -2497,6 +2520,27 @@ ${aiResult.reasoning}`,
         { serviceId, date, time, source: 'direct_booking' },
         req.ip
       );
+
+      // Mirror the booking to Google Calendar when configured. Best-effort:
+      // the booking is already confirmed and stored, so a calendar failure
+      // must not surface to the customer.
+      try {
+        const { createBookingEvent } = await import('./google-calendar');
+        const eventId = await createBookingEvent({
+          job,
+          customerName: contact!.fullName,
+          customerEmail: contact!.email,
+          customerPhone: contact!.phone,
+        });
+
+        if (eventId) {
+          await storage.updateJob(job.id, business.id, {
+            googleCalendarEventId: eventId,
+          } as any);
+        }
+      } catch (calendarError) {
+        console.error("Google Calendar sync failed for this booking:", calendarError);
+      }
 
       // Notifications are best-effort: a confirmed booking must never fail
       // because an optional email integration is unconfigured or down.

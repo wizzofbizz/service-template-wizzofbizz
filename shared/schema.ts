@@ -498,6 +498,8 @@ export const jobs = pgTable("jobs", {
   // Without the annotation TypeScript cannot infer either table (TS7022) and
   // both degrade to `any`, which cascaded into ~150 downstream errors.
   depositInvoiceId: uuid("deposit_invoice_id").references((): any => invoices.id),
+  /** Google Calendar event id, when calendar sync is enabled. */
+  googleCalendarEventId: varchar("google_calendar_event_id", { length: 255 }),
   depositDeadline: timestamp("deposit_deadline"),
   depositRemindersSent: integer("deposit_reminders_sent").default(0),
   lastDepositReminderAt: timestamp("last_deposit_reminder_at"),

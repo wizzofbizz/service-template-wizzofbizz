@@ -36,6 +36,45 @@ function toLocalDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Removes slots that clash with external commitments (currently Google
+ * Calendar). Applied after the in-house calculation so the engine stays
+ * synchronous and testable, and so a calendar outage degrades to "no external
+ * busy times known" rather than breaking availability entirely.
+ */
+export async function filterByExternalBusy(
+  slots: Record<string, string[]>,
+  visitDurationMinutes: number,
+  timezoneOffsetMinutes = new Date().getTimezoneOffset()
+): Promise<Record<string, string[]>> {
+  const days = Object.keys(slots);
+  if (days.length === 0) return slots;
+
+  const { isCalendarConfigured, getBusyPeriods } = await import("./google-calendar");
+  if (!isCalendarConfigured()) return slots;
+
+  const sorted = [...days].sort();
+  const from = new Date(`${sorted[0]}T00:00:00`);
+  const to = new Date(`${sorted[sorted.length - 1]}T23:59:59`);
+
+  const busy = await getBusyPeriods(from, to);
+  if (busy.length === 0) return slots;
+
+  const filtered: Record<string, string[]> = {};
+
+  for (const day of days) {
+    filtered[day] = (slots[day] || []).filter((time) => {
+      const start = new Date(`${day}T${time}:00`);
+      const end = new Date(start.getTime() + visitDurationMinutes * 60_000);
+
+      // Keep the slot only if it overlaps nothing already in the calendar.
+      return !busy.some((period) => start < period.end && end > period.start);
+    });
+  }
+
+  return filtered;
+}
+
 export class AvailabilityService {
   /**
    * Get available time slots for quote visits
