@@ -1,3 +1,4 @@
+import { claimReminder } from "./scheduler";
 import { getPublicBaseUrl } from "./config";
 
 import { storage } from "./storage";
@@ -10,8 +11,16 @@ import { getQuoteSentTemplate, getJobConfirmationTemplate } from "./email-templa
 // incompatible with what storage.getBusiness() returns.
 import type { Business } from "@shared/schema";
 
-// Track sent reminders to avoid duplicates within the same day
-const sentRemindersToday = new Set<string>();
+// Reminder de-duplication is database-backed (see server/scheduler.ts).
+//
+// This was previously an in-memory Set, which lost everything on restart — so
+// a redeploy mid-day re-sent reminders customers had already had — and could
+// not be shared between instances. claimReminder() writes a row guarded by a
+// unique constraint, so a duplicate send is impossible even under a race.
+//
+// The claim is taken BEFORE sending: if delivery then fails, the customer is
+// not messaged again on the next run. Under-sending is recoverable; sending a
+// customer the same "your invoice is overdue" message repeatedly is not.
 
 async function processQuoteFollowups(business: Business) {
   try {
@@ -55,7 +64,7 @@ async function processQuoteFollowups(business: Business) {
       // Check if the reference date was exactly X days ago (within the day)
       if (referenceDate >= targetDate && referenceDate < nextDay) {
         const reminderKey = `quote-${quote.id}-${messageType}-${targetDate.toISOString().split('T')[0]}`;
-        if (sentRemindersToday.has(reminderKey)) continue;
+        if (!await claimReminder({ businessId: business.id, reminderKey, reminderType: 'quote_followup', relatedType: 'quote', relatedId: quote.id })) continue;
         
         const contact = await storage.getContact(quote.contactId, business.id);
         if (!contact) continue;
@@ -138,7 +147,6 @@ async function processQuoteFollowups(business: Business) {
           });
         }
 
-        sentRemindersToday.add(reminderKey);
         console.log(`Queued ${messageType} for ${quote.quoteNumber} to ${contact.fullName}`);
       }
     }
@@ -169,7 +177,7 @@ async function processJobReminders(business: Business) {
       // Check if we should send a reminder today
       if (reminderDays.includes(daysUntil)) {
         const reminderKey = `job-${job.id}-${daysUntil}-${today.toISOString().split('T')[0]}`;
-        if (sentRemindersToday.has(reminderKey)) continue;
+        if (!await claimReminder({ businessId: business.id, reminderKey, reminderType: 'job_reminder', relatedType: 'job', relatedId: job.id })) continue;
 
         const contact = await storage.getContact(job.contactId, business.id);
         if (!contact?.email) continue;
@@ -234,7 +242,6 @@ async function processJobReminders(business: Business) {
           });
         }
 
-        sentRemindersToday.add(reminderKey);
         console.log(`Queued job reminder for ${job.jobNumber} to ${contact.fullName} (${daysUntil} days before)`);
       }
     }
@@ -261,7 +268,7 @@ async function processDepositReminders(business: Business) {
       // Check if we should send a reminder
       if (reminderHours.includes(hoursUntilDeadline)) {
         const reminderKey = `deposit-${job.id}-${hoursUntilDeadline}h-${now.toISOString().split('T')[0]}`;
-        if (sentRemindersToday.has(reminderKey)) continue;
+        if (!await claimReminder({ businessId: business.id, reminderKey, reminderType: 'deposit_reminder', relatedType: 'job', relatedId: job.id })) continue;
 
         const contact = await storage.getContact(job.contactId, business.id);
         if (!contact) continue;
@@ -330,14 +337,13 @@ async function processDepositReminders(business: Business) {
           lastDepositReminderAt: now,
         });
 
-        sentRemindersToday.add(reminderKey);
         console.log(`Queued deposit reminder for ${job.jobNumber} (${hoursUntilDeadline}h until deadline)`);
       }
 
       // Auto-cancel if past deadline and auto-cancellation enabled
       if (hoursUntilDeadline < 0 && business.depositCancellationMode === 'auto') {
         const cancelKey = `deposit-cancel-${job.id}`;
-        if (sentRemindersToday.has(cancelKey)) continue;
+        if (!await claimReminder({ businessId: business.id, reminderKey: cancelKey, reminderType: 'deposit_cancel', relatedType: 'job', relatedId: job.id })) continue;
 
         // Cancel job
         await storage.updateJob(job.id, business.id, {
@@ -390,7 +396,6 @@ async function processDepositReminders(business: Business) {
           }
         }
 
-        sentRemindersToday.add(cancelKey);
         console.log(`Auto-cancelled job ${job.jobNumber} - deposit deadline passed`);
       }
     }
@@ -421,7 +426,7 @@ async function processPaymentReminders(business: Business) {
       // Check if we should send a reminder today
       if (reminderDays.includes(daysOverdue)) {
         const reminderKey = `invoice-${invoice.id}-${daysOverdue}-${today.toISOString().split('T')[0]}`;
-        if (sentRemindersToday.has(reminderKey)) continue;
+        if (!await claimReminder({ businessId: business.id, reminderKey, reminderType: 'payment_reminder', relatedType: 'invoice', relatedId: invoice.id })) continue;
 
         const contact = await storage.getContact(invoice.contactId, business.id);
         if (!contact?.email) continue;
@@ -491,7 +496,6 @@ async function processPaymentReminders(business: Business) {
           lastReminderSentAt: new Date(),
         });
 
-        sentRemindersToday.add(reminderKey);
         console.log(`Queued payment reminder for ${invoice.invoiceNumber} to ${contact.fullName} (${daysOverdue} days overdue)`);
       }
     }

@@ -709,6 +709,36 @@ export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 
 // 14. ACTIVITY_LOG (Audit trail)
+/**
+ * Record of automated reminders already sent.
+ *
+ * This replaces an in-memory Set, which lost its contents on every restart
+ * (so a redeploy mid-day re-sent reminders customers had already received)
+ * and could not be shared between instances. The unique reminderKey makes a
+ * duplicate send impossible even if two workers run the same job at once.
+ */
+export const sentReminders = pgTable("sent_reminders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),
+  /** Stable identity of one reminder, e.g. "quote-<id>-followup-2026-07-19". */
+  reminderKey: varchar("reminder_key", { length: 255 }).notNull().unique(),
+  reminderType: varchar("reminder_type", { length: 50 }).notNull(),
+  relatedType: varchar("related_type", { length: 50 }),
+  relatedId: uuid("related_id"),
+  channel: varchar("channel", { length: 20 }),
+  sentAt: timestamp("sent_at").defaultNow(),
+}, (table) => ({
+  keyIdx: index("sent_reminders_key_idx").on(table.reminderKey),
+  businessIdx: index("sent_reminders_business_idx").on(table.businessId),
+}));
+
+export const insertSentReminderSchema = createInsertSchema(sentReminders).omit({
+  id: true,
+  sentAt: true,
+});
+export type InsertSentReminder = z.infer<typeof insertSentReminderSchema>;
+export type SentReminder = typeof sentReminders.$inferSelect;
+
 export const activityLog = pgTable("activity_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   businessId: uuid("business_id").notNull().references(() => businesses.id, { onDelete: "cascade" }),

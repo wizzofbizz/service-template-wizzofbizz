@@ -3,6 +3,7 @@ import "dotenv/config";
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { startScheduler } from "./scheduler";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -89,5 +90,11 @@ app.use((req, res, next) => {
   // some Linux kernels, and throws ENOTSUP at boot there.
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+
+    // Automated follow-ups (quote chasers, appointment and deposit reminders,
+    // overdue-invoice notices) and the outbound email queue. Runs in-process
+    // so a single container needs no external cron; ENABLE_SCHEDULER=false
+    // turns it off, e.g. when running more than one instance.
+    startScheduler();
   });
 })();
