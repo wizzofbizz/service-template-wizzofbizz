@@ -23,7 +23,7 @@ interface FinancialOverview {
 }
 
 export default function InsightsPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const { user } = useAuth();
   const [period, setPeriod] = useState('30days');
 
@@ -186,7 +186,7 @@ export default function InsightsPage() {
               <SelectItem value="year">Last year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2" style={{ backgroundColor: '#612fff', color: 'white', borderColor: '#612fff' }}>
+          <Button variant="outline" className="gap-2" style={{ backgroundColor: 'hsl(var(--brand))', color: 'white', borderColor: 'hsl(var(--brand))' }}>
             <Download className="h-4 w-4" />
             Export
           </Button>
@@ -310,7 +310,7 @@ export default function InsightsPage() {
                   <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(97, 47, 255, 0.05)', border: '1px solid rgba(97, 47, 255, 0.2)' }}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-sm text-muted-foreground">Avg. Payment Time</div>
-                      <TrendingUp className="h-4 w-4" style={{ color: '#612fff' }} />
+                      <TrendingUp className="h-4 w-4" style={{ color: 'hsl(var(--brand))' }} />
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-2xl font-bold">{projectedIncome?.averagePaymentTimeDays ?? 0} days</div>
@@ -336,7 +336,7 @@ export default function InsightsPage() {
                     <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(97, 47, 255, 0.05)', border: '1px solid rgba(97, 47, 255, 0.2)' }}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="text-sm text-muted-foreground">Avg. Invoice Value</div>
-                        <TrendingUp className="h-4 w-4" style={{ color: '#612fff' }} />
+                        <TrendingUp className="h-4 w-4" style={{ color: 'hsl(var(--brand))' }} />
                       </div>
                       <div className="text-2xl font-bold">
                         {overview.paidInvoices.value > 0 ? formatCurrency(overview.totalRevenue.value / overview.paidInvoices.value) : formatCurrency(0)}
@@ -572,7 +572,7 @@ export default function InsightsPage() {
                       }))}
                       margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
                       valueFormat=" >-.0f"
-                      colors={['#612fff', '#8B5CF6', '#10b981', '#f59e0b', '#ef4444']}
+                      colors={['hsl(var(--brand))', '#8B5CF6', '#10b981', '#f59e0b', '#ef4444']}
                       borderWidth={20}
                       labelColor="#ffffff"
                       beforeSeparatorLength={100}
@@ -619,7 +619,7 @@ export default function InsightsPage() {
                       <div 
                         className="h-3 w-3 rounded-full flex-shrink-0"
                         style={{ 
-                          backgroundColor: ['#612fff', '#8B5CF6', '#10b981', '#f59e0b', '#ef4444'][index] 
+                          backgroundColor: ['hsl(var(--brand))', '#8B5CF6', '#10b981', '#f59e0b', '#ef4444'][index] 
                         }}
                       />
                       <span className="text-sm font-medium whitespace-nowrap">{stage.stage}</span>
@@ -658,7 +658,7 @@ export default function InsightsPage() {
                     <div className="text-sm font-medium text-muted-foreground">Pipeline Breakdown</div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       <div className="text-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(97, 47, 255, 0.05)', border: '1px solid rgba(97, 47, 255, 0.2)' }}>
-                        <div className="text-lg sm:text-xl font-bold" style={{ color: '#612fff' }}>{leadFunnel?.stages[0]?.count || 0}</div>
+                        <div className="text-lg sm:text-xl font-bold" style={{ color: 'hsl(var(--brand))' }}>{leadFunnel?.stages[0]?.count || 0}</div>
                         <div className="text-xs text-muted-foreground mt-1">Quotes</div>
                       </div>
                       <div className="text-center p-3 rounded-lg bg-purple-500/5 border border-purple-200 dark:border-purple-900">

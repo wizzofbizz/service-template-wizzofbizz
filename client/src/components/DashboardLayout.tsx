@@ -1,3 +1,4 @@
+import { siteConfig } from "@/config/site";
 import { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { Home, Users, FileText, Briefcase, Receipt, Wrench, Settings, Menu, LogOut, User, MessageSquare, Bug, Calendar as CalendarIcon, TrendingUp, Orbit, HelpCircle } from "lucide-react";
@@ -34,7 +35,7 @@ const navigationItems = [
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const menuStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const menuStyle = { fontFamily: 'var(--font-sans)' };
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -58,8 +59,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="flex flex-col h-full" style={menuStyle}>
       <div className="p-6 border-b">
         <div className="flex items-center gap-2 mb-1">
-          <Orbit className="h-6 w-6" style={{ color: '#612fff' }} />
-          <h1 className="text-xl font-bold">ServiceLoop</h1>
+          <Orbit className="h-6 w-6" style={{ color: 'hsl(var(--brand))' }} />
+          <h1 className="text-xl font-bold">{siteConfig.name}</h1>
         </div>
         <p className="text-sm text-muted-foreground">Business Dashboard</p>
       </div>
@@ -76,7 +77,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 setLocation(item.href);
                 setMobileMenuOpen(false);
               }}
-              style={isActive ? { backgroundColor: '#612fff', borderColor: '#612fff', color: 'white' } : {}}
+              style={isActive ? { backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))', color: 'white' } : {}}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive
                   ? ""

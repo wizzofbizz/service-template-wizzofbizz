@@ -18,7 +18,7 @@ const PillBadge = React.forwardRef<HTMLDivElement, PillBadgeProps>(
           className
         )}
         style={{
-          fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif',
+          fontFamily: 'var(--font-sans)',
           letterSpacing: '0.1em'
         }}
         {...props}

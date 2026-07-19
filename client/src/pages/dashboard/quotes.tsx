@@ -80,7 +80,7 @@ const STORAGE_KEY = "quote-status-filters";
 const ALL_STATUSES: QuoteStatus[] = ["draft", "ai_quote", "sent", "viewed", "accepted", "deposit_paid", "declined", "expired", "archived"];
 
 export default function QuotesPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<QuoteStatus[]>([]);
@@ -348,7 +348,7 @@ export default function QuotesPage() {
             Create and manage customer quotes
           </p>
         </div>
-        <Button onClick={() => setLocation("/dashboard/quotes/new")} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+        <Button onClick={() => setLocation("/dashboard/quotes/new")} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
           <Plus className="mr-2 h-4 w-4" />
           New Quote
         </Button>
@@ -478,7 +478,7 @@ export default function QuotesPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Create your first quote to get started
               </p>
-              <Button onClick={() => setLocation("/dashboard/quotes/new")} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+              <Button onClick={() => setLocation("/dashboard/quotes/new")} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Quote
               </Button>
@@ -611,7 +611,7 @@ export default function QuotesPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Create your first quote to get started
               </p>
-              <Button onClick={() => setLocation("/dashboard/quotes/new")} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+              <Button onClick={() => setLocation("/dashboard/quotes/new")} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Quote
               </Button>

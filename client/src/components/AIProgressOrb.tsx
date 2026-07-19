@@ -10,7 +10,7 @@ interface AIProgressOrbProps {
 
 export function AIProgressOrb({ progress, status, statusText }: AIProgressOrbProps) {
   const [displayProgress, setDisplayProgress] = useState(0);
-  const appFont = 'AxLLCircular, Helvetica, Arial, sans-serif';
+  const appFont = 'var(--font-sans)';
 
   // Smooth progress animation
   useEffect(() => {

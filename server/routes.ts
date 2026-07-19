@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { getPublicBaseUrl } from "./config";
+import { getPublicBaseUrl, isGoogleAuthConfigured, features } from "./config";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -410,6 +410,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================================================
 
   // Google Maps API key endpoint (for client-side usage)
+  // Tells the client which optional integrations are switched on, so the UI
+  // can hide controls for things this deployment has not configured.
+  app.get("/api/config/features", (_req, res) => {
+    res.json({
+      googleAuth: isGoogleAuthConfigured(),
+      aiQuoting: features.aiQuoting,
+      whatsapp: features.whatsapp,
+      deposits: features.deposits,
+      invoicing: features.invoicing,
+      bookingMode: features.bookingMode,
+    });
+  });
+
   app.get("/api/config/google-maps-key", (_req, res) => {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {

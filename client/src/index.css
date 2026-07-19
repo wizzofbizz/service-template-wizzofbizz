@@ -49,6 +49,8 @@
   --popover-border: 220 9% 86%;
 
   --primary: 217 91% 48%;
+  /* Brand accent. Rebrand by changing this one value (and its dark-mode twin). */
+  --brand: 217 91% 48%;
 
   --primary-foreground: 0 0% 100%;
 
@@ -433,6 +435,7 @@
   --popover-border: 220 9% 20%;
 
   --primary: 217 91% 52%;
+  --brand: 217 91% 52%;
 
   --primary-foreground: 0 0% 100%;
 

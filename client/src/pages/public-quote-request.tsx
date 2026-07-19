@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,9 +57,11 @@ interface Business {
 }
 
 export default function PublicQuoteRequest() {
-  const [, params] = useRoute("/:slug/quote");
   const [, navigate] = useLocation();
-  const slug = params?.slug;
+  // Single-tenant: the public API resolves the one configured business, so
+  // there is no tenant slug in the URL. "current" is the sentinel the server
+  // accepts in place of a slug.
+  const slug = "current";
 
   const [step, setStep] = useState(1);
   const [business, setBusiness] = useState<Business | null>(null);
@@ -314,7 +316,7 @@ export default function PublicQuoteRequest() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-[#0b66e4]" strokeWidth={2.5} />
-          <p className="text-gray-600 font-medium" style={{ fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' }}>
+          <p className="text-gray-600 font-medium" style={{ fontFamily: 'var(--font-sans)' }}>
             Loading quote request experience...
           </p>
         </div>
@@ -942,7 +944,7 @@ export default function PublicQuoteRequest() {
                   Thank you for booking your site visit. We will be in touch shortly to confirm the details.
                 </p>
               )}
-              <Button onClick={() => navigate(`/${slug}`)} className="w-full text-white" style={{ backgroundColor: business?.primaryColor || '#0b66e4' }}>
+              <Button onClick={() => navigate("/")} className="w-full text-white" style={{ backgroundColor: business?.primaryColor || '#0b66e4' }}>
                 Back to Business Page
               </Button>
             </CardContent>

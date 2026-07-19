@@ -145,7 +145,7 @@ const getDisplayLabel = (invoice: Invoice): string => {
 };
 
 export default function InvoicesPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -368,7 +368,7 @@ export default function InvoicesPage() {
             Track payments and manage invoices
           </p>
         </div>
-        <Button onClick={() => setLocation("/dashboard/invoices/new")} size="default" style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+        <Button onClick={() => setLocation("/dashboard/invoices/new")} size="default" style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
           <Plus className="mr-2 h-4 w-4" />
           New Invoice
         </Button>

@@ -24,7 +24,7 @@ interface LandingPageSection {
 }
 
 export default function WebsiteEditorPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const { user } = useAuth();
   const { toast } = useToast();
   const [editingSection, setEditingSection] = useState<LandingPageSection | null>(null);
@@ -498,7 +498,7 @@ export default function WebsiteEditorPage() {
                     }}
                     disabled={updateMutation.isPending}
                     data-testid="button-save"
-                    style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+                    style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
                   >
                     {updateMutation.isPending ? (
                       <>

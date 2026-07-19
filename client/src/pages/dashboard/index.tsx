@@ -635,7 +635,7 @@ export default function DashboardHome() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-2">
-            <Button onClick={() => setLocation("/dashboard/quotes/new")} className="justify-start" style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+            <Button onClick={() => setLocation("/dashboard/quotes/new")} className="justify-start" style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
               <Plus className="h-4 w-4 mr-2" />
               Create New Quote
             </Button>

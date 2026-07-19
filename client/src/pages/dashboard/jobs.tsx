@@ -88,7 +88,7 @@ const STORAGE_KEY = "job-status-filters";
 const ALL_JOB_STATUSES: JobStatus[] = ["pending", "pending_deposit", "deposit_paid", "scheduled", "in_progress", "completed", "cancelled"];
 
 export default function JobsPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -369,7 +369,7 @@ export default function JobsPage() {
           <h1 className="text-3xl font-bold">Jobs</h1>
           <p className="text-muted-foreground mt-1">Manage and track your jobs</p>
         </div>
-        <Button onClick={() => setLocation("/dashboard/jobs/new")} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+        <Button onClick={() => setLocation("/dashboard/jobs/new")} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
           <Plus className="mr-2 h-4 w-4" />
           New Job
         </Button>
@@ -497,7 +497,7 @@ export default function JobsPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Create your first job to get started
               </p>
-              <Button onClick={() => setLocation("/dashboard/jobs/new")} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+              <Button onClick={() => setLocation("/dashboard/jobs/new")} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
                 <Plus className="mr-2 h-4 w-4" />
                 New Job
               </Button>
@@ -702,7 +702,7 @@ export default function JobsPage() {
                       <p className="text-sm text-muted-foreground mb-4">
                         Create your first job to get started
                       </p>
-                      <Button onClick={() => setLocation("/dashboard/jobs/new")} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+                      <Button onClick={() => setLocation("/dashboard/jobs/new")} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
                         <Plus className="mr-2 h-4 w-4" />
                         New Job
                       </Button>

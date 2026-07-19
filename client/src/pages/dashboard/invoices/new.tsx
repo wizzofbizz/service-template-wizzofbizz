@@ -43,7 +43,7 @@ type LineItem = {
 };
 
 export default function NewInvoicePage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const [location, setLocation] = useLocation();
   const invoiceId = location.split('/').pop() !== 'new' ? location.split('/')[3] : undefined;
   const isEdit = !!invoiceId;
@@ -491,7 +491,7 @@ export default function NewInvoicePage() {
         <Button
           onClick={() => handleSubmit("sent")}
           disabled={createMutation.isPending}
-          style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+          style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
         >
           {createMutation.isPending ? "Creating..." : "Create & Send"}
         </Button>

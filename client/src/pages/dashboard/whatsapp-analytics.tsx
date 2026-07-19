@@ -41,10 +41,10 @@ interface WhatsAppAnalytics {
   };
 }
 
-const COLORS = ['#612fff', '#10b981', '#f59e0b', '#ef4444'];
+const COLORS = ['hsl(var(--brand))', '#10b981', '#f59e0b', '#ef4444'];
 
 export default function WhatsAppAnalyticsPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const { user, business } = useAuth();
 
   const { data: analytics, isLoading } = useQuery<WhatsAppAnalytics>({
@@ -123,10 +123,10 @@ export default function WhatsAppAnalyticsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Read Rate</CardTitle>
-            <Eye className="h-5 w-5" style={{ color: '#612fff' }} />
+            <Eye className="h-5 w-5" style={{ color: 'hsl(var(--brand))' }} />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold" style={{ color: '#612fff' }}>{analytics.readRate}%</div>
+            <div className="text-3xl font-bold" style={{ color: 'hsl(var(--brand))' }}>{analytics.readRate}%</div>
             <Progress value={analytics.readRate} className="mt-2" />
           </CardContent>
         </Card>
@@ -195,7 +195,7 @@ export default function WhatsAppAnalyticsPage() {
                       labelFormatter={(value) => new Date(value).toLocaleDateString('en-ZA')}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="count" stroke="#612fff" name="Messages" />
+                    <Line type="monotone" dataKey="count" stroke="hsl(var(--brand))" name="Messages" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>

@@ -1,3 +1,4 @@
+import { siteConfig } from "@/config/site";
 import { useEffect } from "react";
 
 interface SEOHeadProps {
@@ -45,7 +46,7 @@ export function SEOHead({
     setMeta('og:type', ogType, true);
     setMeta('og:title', title, true);
     setMeta('og:description', description, true);
-    setMeta('og:site_name', 'ServiceLoop', true);
+    setMeta('og:site_name', siteConfig.name, true);
     if (ogImage) {
       setMeta('og:image', ogImage, true);
       setMeta('og:image:alt', title, true);

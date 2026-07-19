@@ -27,7 +27,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recha
 // Apply font family globally or to a wrapper if possible.
 // For this specific file, we'll apply it to the main container.
 const pageStyle = {
-  fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif',
+  fontFamily: 'var(--font-sans)',
 };
 
 // Function to determine if a button should be purple
@@ -205,7 +205,7 @@ export default function ContactsPage() {
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-4 w-64 mt-2" />
           </div>
-          <Button onClick={handleAddContact} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+          <Button onClick={handleAddContact} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
             <Plus className="h-4 w-4 mr-2" />
             New Contact
           </Button>
@@ -233,7 +233,7 @@ export default function ContactsPage() {
             Manage your leads and customers
           </p>
         </div>
-        <Button onClick={handleAddContact} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+        <Button onClick={handleAddContact} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
           <Plus className="h-4 w-4 mr-2" />
           New Contact
         </Button>
@@ -364,7 +364,7 @@ export default function ContactsPage() {
                 {search ? "No contacts found. Try a different search term." : "Add your first lead to get started."}
               </p>
               {!search && (
-                <Button onClick={handleAddContact} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+                <Button onClick={handleAddContact} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add New Contact
                 </Button>
@@ -465,7 +465,7 @@ export default function ContactsPage() {
                 {search ? "No contacts found. Try a different search term." : "Add your first lead to get started."}
               </p>
               {!search && (
-                <Button onClick={handleAddContact} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+                <Button onClick={handleAddContact} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add New Contact
                 </Button>

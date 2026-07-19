@@ -56,7 +56,7 @@ const formatCurrency = (amount: number): string => {
 };
 
 export default function QuoteFormPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const [, setLocation] = useLocation();
   const [matchEdit, paramsEdit] = useRoute("/dashboard/quotes/:id/edit");
   const [matchView, paramsView] = useRoute("/dashboard/quotes/:id/view");
@@ -1039,7 +1039,7 @@ export default function QuoteFormPage() {
           <Button variant="outline" onClick={() => saveMutation.mutate("draft")}>
             Save as Draft
           </Button>
-          <Button onClick={() => saveMutation.mutate("sent")} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+          <Button onClick={() => saveMutation.mutate("sent")} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
             Save & Send
           </Button>
         </div>

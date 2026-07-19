@@ -64,7 +64,7 @@ interface ServiceTemplate {
 }
 
 export default function ServicesPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -425,7 +425,7 @@ export default function ServicesPage() {
             <Sparkles className="h-4 w-4 mr-2" />
             Use Template
           </Button>
-          <Button onClick={openNewDialog} className="shrink-0" style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+          <Button onClick={openNewDialog} className="shrink-0" style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
             <Plus className="h-4 w-4 mr-2" />
             Create Custom
           </Button>
@@ -1075,7 +1075,7 @@ export default function ServicesPage() {
             }}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!serviceName} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+            <Button onClick={handleSave} disabled={!serviceName} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
               {selectedService ? "Update" : "Create"} Service
             </Button>
           </DialogFooter>

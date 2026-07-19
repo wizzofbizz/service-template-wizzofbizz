@@ -137,7 +137,7 @@ function PasswordChangeForm() {
       <Button
         type="submit"
         disabled={changePasswordMutation.isPending}
-        style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+        style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
       >
         {changePasswordMutation.isPending ? "Updating..." : "Update Password"}
       </Button>
@@ -374,7 +374,7 @@ function CustomDomainTab() {
                     !domain ||
                     domains.some((d: any) => d.domainType === domainType)
                   }
-                  style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+                  style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
                 >
                   {addDomainMutation.isPending ? "Adding..." : "Add Domain"}
                 </Button>
@@ -467,7 +467,7 @@ function CustomDomainTab() {
                                   disabled={verifyDomainMutation.isPending}
                                   size="sm"
                                   className="mt-2"
-                                  style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+                                  style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
                                 >
                                   {verifyDomainMutation.isPending ? "Verifying..." : "Verify DNS"}
                                 </Button>
@@ -505,7 +505,7 @@ function CustomDomainTab() {
 }
 
 export default function SettingsPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const { user, business } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1209,7 +1209,7 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSave}
                 disabled={updateBusinessMutation.isPending}
-                style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+                style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
               >
                 {updateBusinessMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
@@ -1281,7 +1281,7 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSave}
                 disabled={updateBusinessMutation.isPending}
-                style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+                style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
               >
                 {updateBusinessMutation.isPending ? "Saving..." : "Save Review URL"}
               </Button>
@@ -1495,7 +1495,7 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSave}
                 disabled={updateBusinessMutation.isPending}
-                style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+                style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
               >
                 {updateBusinessMutation.isPending ? "Saving..." : "Save Calendar Settings"}
               </Button>
@@ -1747,7 +1747,7 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSave}
                 disabled={updateBusinessMutation.isPending}
-                style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+                style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
               >
                 {updateBusinessMutation.isPending ? "Saving..." : "Save Deposit Policies"}
               </Button>
@@ -1863,7 +1863,7 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSave}
                 disabled={updateBusinessMutation.isPending}
-                style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}
+                style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}
               >
                 {updateBusinessMutation.isPending ? "Saving..." : "Save WhatsApp Settings"}
               </Button>

@@ -73,7 +73,7 @@ const statusLabels: Record<JobStatus, string> = {
 };
 
 export default function CalendarPage() {
-  const pageStyle = { fontFamily: 'AxLLCircular, Helvetica, Arial, sans-serif' };
+  const pageStyle = { fontFamily: 'var(--font-sans)' };
   const [, setLocation] = useLocation();
   const isMobile = window.innerWidth < 768;
   const [calendarView, setCalendarView] = useState<View>(isMobile ? "day" : "month");
@@ -268,7 +268,7 @@ export default function CalendarPage() {
           <h1 className="text-3xl font-bold">Calendar</h1>
           <p className="text-muted-foreground mt-1">View and manage your scheduled jobs</p>
         </div>
-        <Button onClick={() => setLocation("/dashboard/jobs/new")} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+        <Button onClick={() => setLocation("/dashboard/jobs/new")} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
           <Plus className="mr-2 h-4 w-4" />
           New Job
         </Button>
@@ -395,7 +395,7 @@ export default function CalendarPage() {
               <Button variant="outline" onClick={() => setSelectedJob(null)}>
                 Close
               </Button>
-              <Button onClick={() => setLocation(`/dashboard/jobs/${selectedJob.id}/edit`)} style={{ backgroundColor: '#612fff', borderColor: '#612fff' }}>
+              <Button onClick={() => setLocation(`/dashboard/jobs/${selectedJob.id}/edit`)} style={{ backgroundColor: 'hsl(var(--brand))', borderColor: 'hsl(var(--brand))' }}>
                 Edit Job
               </Button>
             </DialogFooter>

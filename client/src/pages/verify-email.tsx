@@ -1,3 +1,4 @@
+import { siteConfig } from "@/config/site";
 
 import { useEffect, useState } from "react";
 import { useLocation, Link } from "wouter";
@@ -53,8 +54,8 @@ export default function VerifyEmail() {
         <div className="text-center mb-12">
           <Link href="/">
             <div className="inline-flex items-center gap-3 mb-8 cursor-pointer">
-              <Orbit className="h-10 w-10" style={{ color: '#612fff' }} />
-              <span className="text-3xl font-normal text-black">ServiceLoop</span>
+              <Orbit className="h-10 w-10" style={{ color: 'hsl(var(--brand))' }} />
+              <span className="text-3xl font-normal text-black">{siteConfig.name}</span>
             </div>
           </Link>
         </div>

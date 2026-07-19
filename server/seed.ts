@@ -87,80 +87,82 @@ async function seed() {
     .where(eq(schema.landingPageContent.businessId, business.id));
 
   console.log("🗑️ Cleared existing landing page content");
+  // Landing page content.
+  //
+  // The public site (client/src/pages/business-landing.tsx) looks these up by
+  // (section, elementKey). Keys must match exactly, and `value` is a plain
+  // string — not JSON. Services use item_N_heading / item_N_description.
+  const text = (
+    section: string,
+    elementKey: string,
+    value: string,
+    displayOrder: number
+  ) => ({
+    businessId: business.id,
+    section,
+    elementKey,
+    contentType: "text",
+    value,
+    displayOrder,
+    isActive: true,
+  });
 
-  // Create landing page content
   const landingPageData = [
-    // Hero Section
+    // Hero
+    text("hero", "heading", "Professional Services You Can Trust", 1),
+    text("hero", "subheading", "Book online in minutes. Clear pricing, no surprises.", 2),
+    text("hero", "cta_button", "Get a Quote", 3),
     {
       businessId: business.id,
       section: "hero",
-      elementKey: "main",
-      contentType: "text",
-      value: JSON.stringify({
-        heading: "Transform Your Business with Professional Services",
-        subheading: "Delivering excellence and quality results that exceed expectations",
-        ctaText: "Get Started Today",
-        ctaUrl: "/contact"
-      }),
-      url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&h=1080&fit=crop",
-      altText: "Professional team collaboration",
-      displayOrder: 1,
+      elementKey: "background_image",
+      contentType: "image",
+      value: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1920&q=80",
+      altText: "Our team at work",
+      displayOrder: 4,
       isActive: true,
     },
-    // Services Section
-    {
-      businessId: business.id,
-      section: "services",
-      elementKey: "service-1",
-      contentType: "text",
-      value: JSON.stringify({
-        heading: "Consulting Services",
-        bodyText: "Expert business consulting to help you achieve your goals and maximize growth potential.",
-        ctaText: "Learn More",
-        ctaUrl: "/services/consulting"
-      }),
-      url: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=600&fit=crop",
-      altText: "Business consulting",
-      displayOrder: 1,
-      isActive: true,
-    },
-    {
-      businessId: business.id,
-      section: "services",
-      elementKey: "service-2",
-      contentType: "text",
-      value: JSON.stringify({
-        heading: "Project Management",
-        bodyText: "Professional project management services ensuring on-time delivery and exceptional results.",
-        ctaText: "View Projects",
-        ctaUrl: "/services/project-management"
-      }),
-      url: "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=800&h=600&fit=crop",
-      altText: "Project management",
-      displayOrder: 2,
-      isActive: true,
-    },
-    {
-      businessId: business.id,
-      section: "services",
-      elementKey: "service-3",
-      contentType: "text",
-      value: JSON.stringify({
-        heading: "Technical Support",
-        bodyText: "24/7 technical support and maintenance services to keep your systems running smoothly.",
-        ctaText: "Get Support",
-        ctaUrl: "/services/support"
-      }),
-      url: "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=800&h=600&fit=crop",
-      altText: "Technical support",
-      displayOrder: 3,
-      isActive: true,
-    },
+
+    // Services
+    text("services", "section_title", "What We Do", 1),
+    text("services", "item_1_heading", "Consulting Services", 2),
+    text("services", "item_1_description", "Expert advice to help you plan with confidence and get results.", 3),
+    text("services", "item_2_heading", "Project Management", 4),
+    text("services", "item_2_description", "We run the work end to end and keep you updated at every step.", 5),
+    text("services", "item_3_heading", "Technical Support", 6),
+    text("services", "item_3_description", "Fast, friendly help when something needs fixing.", 7),
+
+    // About
+    text("about", "heading", "About Us", 1),
+    text(
+      "about",
+      "body_text",
+      "We are a small team who care about doing the job properly. Every booking gets the same attention, whether it is a quick visit or a large project.",
+      2
+    ),
+
+    // Contact
+    text("contact", "section_title", "Get In Touch", 1),
+    text(
+      "contact",
+      "body_text",
+      "Request a quote online and we will get back to you the same working day.",
+      2
+    ),
   ];
 
-  // Clear existing services to re-seed them with questions
-  await db.delete(schema.services);
-  console.log("🗑️ Cleared existing services");
+  await db.insert(schema.landingPageContent).values(landingPageData);
+  console.log("✅ Created landing page content");
+
+  // Re-seeding services is skipped once any exist, because quotes and jobs
+  // reference them by foreign key — deleting them would fail (or orphan real
+  // work) on a database that has already been used.
+  const existingServices = await db.select().from(schema.services).limit(1);
+  if (existingServices.length > 0) {
+    console.log("ℹ️ Services already exist, leaving them untouched");
+    console.log("🎉 Seeding complete!");
+    return;
+  }
 
   // Seed services with questions
   const [service1] = await db.insert(schema.services).values({
@@ -251,8 +253,6 @@ async function seed() {
       ],
     }).returning();
 
-  await db.insert(schema.landingPageContent).values(landingPageData);
-  console.log("✅ Created landing page content");
 
   console.log("🎉 Seeding complete!");
 }

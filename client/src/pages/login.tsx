@@ -1,3 +1,4 @@
+import { siteConfig } from "@/config/site";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,13 +6,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Orbit } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const fontFamily = 'AxLLCircular, Helvetica, Arial, sans-serif';
+  const fontFamily = 'var(--font-sans)';
+
+  // Google sign-in is optional; hide the button when the server has no
+  // Google credentials configured, so it cannot lead to a dead end.
+  const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/config/features")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((cfg) => setGoogleAuthEnabled(Boolean(cfg?.googleAuth)))
+      .catch(() => setGoogleAuthEnabled(false));
+  }, []);
 
   const handleGoogleLogin = () => {
     console.log("🔐 Initiating Google login...");
@@ -62,8 +74,8 @@ export default function Login() {
         <div className="text-center mb-12">
           <Link href="/">
             <div className="inline-flex items-center gap-3 mb-8 cursor-pointer">
-              <Orbit className="h-10 w-10" style={{ color: '#612fff' }} />
-              <span className="text-3xl font-normal text-black" style={{ fontFamily }}>ServiceLoop</span>
+              <Orbit className="h-10 w-10" style={{ color: 'hsl(var(--brand))' }} />
+              <span className="text-3xl font-normal text-black" style={{ fontFamily }}>{siteConfig.name}</span>
             </div>
           </Link>
           <h1 className="text-4xl md:text-5xl font-normal mb-4 text-black" style={{ fontFamily }}>Welcome Back</h1>
@@ -74,7 +86,7 @@ export default function Login() {
           <CardHeader className="pb-6">
             <CardTitle className="text-2xl font-normal text-black" style={{ fontFamily }}>Login</CardTitle>
             <CardDescription className="text-sm font-light text-gray-600" style={{ fontFamily }}>
-              Sign in with email or Google account
+              {googleAuthEnabled ? "Sign in with email or Google account" : "Sign in with your email and password"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -113,7 +125,7 @@ export default function Login() {
               <Button 
                 type="submit"
                 className="w-full h-12 text-white hover:opacity-90 font-medium rounded-md"
-                style={{ backgroundColor: '#612fff' }}
+                style={{ backgroundColor: 'hsl(var(--brand))' }}
                 disabled={isLoading}
                 data-testid="button-email-login"
               >
@@ -121,30 +133,28 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="relative my-6">
-              <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-4 text-xs text-gray-500 font-light">
-                OR
-              </span>
-            </div>
-            
-            <Button 
-              onClick={handleGoogleLogin}
-              variant="outline"
-              className="w-full h-12 font-medium rounded-md" 
-              data-testid="button-google-login"
-            >
-              Continue with Google
-            </Button>
-            
-            <div className="mt-8 text-center text-sm">
-              <p className="font-light text-gray-600" style={{ fontFamily }}>
-                Don't have an account?{" "}
-                <Link href="/register" className="text-black hover:underline font-medium" data-testid="link-register">
-                  Sign up
-                </Link>
-              </p>
-            </div>
+            {googleAuthEnabled && (
+              <>
+                <div className="relative my-6">
+                  <Separator />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-4 text-xs text-gray-500 font-light">
+                    OR
+                  </span>
+                </div>
+
+                <Button
+                  onClick={handleGoogleLogin}
+                  variant="outline"
+                  className="w-full h-12 font-medium rounded-md"
+                  data-testid="button-google-login"
+                >
+                  Continue with Google
+                </Button>
+              </>
+            )}
+
+            {/* No public sign-up: this is a single-business deployment, and
+                accounts are created by the owner, not by visitors. */}
           </CardContent>
         </Card>
       </div>
