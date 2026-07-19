@@ -15,7 +15,10 @@ const sentRemindersToday = new Set<string>();
 
 async function processQuoteFollowups(business: Business) {
   try {
-    const followupDays = business.quoteFollowupDays || 3;
+    // quoteFollowupDays is a number[] on the businesses table (default
+    // [3, 7, 14]). This routine works off a single offset, so take the first
+    // configured value and fall back to 3.
+    const followupDays = business.quoteFollowupDays?.[0] ?? 3;
     const quotes = await storage.getQuotesByBusinessId(business.id);
     
     // Find quotes that were sent X days ago

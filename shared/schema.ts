@@ -77,6 +77,11 @@ export const activityActionEnum = pgEnum("activity_action", [
   "invoice_sent", "invoice_viewed", "invoice_paid", "payment_received", "payment_reminder_sent",
   // Communication
   "email_sent", "email_opened", "email_clicked", "whatsapp_sent", "whatsapp_delivered", "whatsapp_read",
+  // WhatsApp consent. These are written by server/whatsapp-consent.ts and were
+  // missing from the enum, so Postgres rejected every consent write — opt-in
+  // and opt-out were silently not being recorded, which matters for
+  // marketing-consent compliance.
+  "whatsapp_consent_given", "whatsapp_opt_in", "whatsapp_opt_out",
   "call_inbound", "call_outbound", "message_received",
   // Customer feedback
   "review_requested", "review_submitted", "feedback_received"

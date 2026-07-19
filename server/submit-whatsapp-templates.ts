@@ -73,7 +73,7 @@ async function submitTemplates() {
           'twilio/text': {
             body: template.body
           }
-        } as unknown as ContentTypes
+        } as unknown as Parameters<typeof client.content.v1.contents.create>[0]['types']
       });
 
       console.log(`✅ Template submitted successfully!`);

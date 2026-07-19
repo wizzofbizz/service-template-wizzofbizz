@@ -123,7 +123,9 @@ export interface IStorage {
 
   // Invoices
   getInvoice(id: string, businessId: string): Promise<Invoice | undefined>;
-  getInvoiceById(invoiceId: string): Promise<Invoice | null>;
+  // NOTE: getInvoiceById was declared here but never implemented on DbStorage
+  // and never called anywhere in the codebase, so the dead declaration was
+  // removed. Use getInvoice(id, businessId), which enforces tenant scoping.
   getInvoicesByBusinessId(businessId: string): Promise<Invoice[]>;
   createInvoice(invoice: InvoiceWrite): Promise<Invoice>;
   updateInvoice(id: string, businessId: string, invoice: Partial<InvoiceWrite>): Promise<Invoice | undefined>;

@@ -5,6 +5,7 @@ import { getCurrentBusiness } from "./current-business";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import type { LandingPageContent } from "@shared/schema";
 import { z } from "zod";
 import { setupGoogleAuth } from "./googleAuth";
 import { requireAuth, attachBusinessContext } from "./middleware/auth";
@@ -185,9 +186,10 @@ const invoiceSchema = z.object({
   totalAmount: z.string(),
   notes: z.string().optional(),
   publicToken: z.string().uuid().optional(), // Added publicToken
-  status: z.enum(["draft", "sent", "paid", "cancelled", "overdue", "deposit"]).optional(),
+  // Mirrors invoiceStatusEnum in shared/schema.ts. "deposit" was listed here
+  // by mistake — it is an invoiceType value, not a status.
+  status: z.enum(["draft", "sent", "paid", "cancelled", "overdue"]).optional(),
   paidAt: z.date().optional(),
-  sentAt: z.date().optional(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
   createdBy: z.string().uuid().optional(),
@@ -365,7 +367,7 @@ async function generateQuoteNumber(businessId: string): Promise<string> {
     WHERE quote_number LIKE ${prefix || ''} || '-%'
   `);
 
-  const maxNum = result.rows[0]?.max_num || 0;
+  const maxNum = Number(result.rows[0]?.max_num ?? 0);
   const nextNumber = maxNum + 1;
   return `${prefix}-${nextNumber.toString().padStart(4, '0')}`;
 }
@@ -381,7 +383,7 @@ async function generateJobNumber(businessId: string): Promise<string> {
     WHERE job_number LIKE ${prefix || ''} || '-%'
   `);
 
-  const maxNum = result.rows[0]?.max_num || 0;
+  const maxNum = Number(result.rows[0]?.max_num ?? 0);
   const nextNumber = maxNum + 1;
   return `${prefix}-${nextNumber.toString().padStart(4, '0')}`;
 }
@@ -397,7 +399,7 @@ async function generateInvoiceNumber(businessId: string): Promise<string> {
     WHERE invoice_number LIKE ${prefix || ''} || '-%'
   `);
 
-  const maxNum = result.rows[0]?.max_num || 0;
+  const maxNum = Number(result.rows[0]?.max_num ?? 0);
   const nextNumber = maxNum + 1;
   return `${prefix}-${nextNumber.toString().padStart(4, '0')}`;
 }
@@ -587,7 +589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Find job for this quote (include pending_deposit status)
       const jobs = await storage.getJobsByBusinessId(quote.businessId);
-      const job = jobs.find(j => j.quoteId === quote.id && (j.status === 'scheduled' || j.status === 'draft' || j.status === 'pending_deposit'));
+      const job = jobs.find(j => j.quoteId === quote.id && (j.status === 'scheduled' || j.status === 'pending' || j.status === 'pending_deposit'));
 
       res.json({ job: job || null });
     } catch (error) {
@@ -961,7 +963,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if a job already exists for this quote (created during quote acceptance)
       console.log('🔍 Checking for existing job...');
       const jobs = await storage.getJobsByBusinessId(business.id);
-      let job = jobs.find(j => j.quoteId === quote.id && (j.status === 'draft' || j.status === 'pending_deposit'));
+      let job = jobs.find(j => j.quoteId === quote.id && (j.status === 'pending' || j.status === 'pending_deposit'));
 
       if (job) {
         // Update existing job with schedule details
@@ -999,6 +1001,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           depositDeadline: depositDeadline,
           internalNotes: notes || job.internalNotes,
         });
+
+        if (!job) {
+          console.error('❌ Job update returned no row');
+          return res.status(404).json({ message: "Job not found" });
+        }
 
         console.log('✅ Job updated successfully:', job.jobNumber, 'with status:', job.status);
       } else {
@@ -1315,6 +1322,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           preferredChannel: contactInfo.preferredChannel || "email",
           whatsappOptIn: contactInfo.whatsappOptIn || false,
         });
+      }
+
+      // storage.updateContact returns undefined when no row matched.
+      if (!contact) {
+        return res.status(404).json({ message: "Contact not found" });
       }
 
       // Get service details
@@ -1849,8 +1861,10 @@ ${aiResult.reasoning}`,
 
       // Determine job status based on deposit requirement
       // - With deposit: pending_deposit (waiting for payment + booking)
-      // - Without deposit: draft (waiting for customer to book appointment)
-      const jobStatus = quote.requiresDeposit ? 'pending_deposit' : 'draft';
+      // - Without deposit: pending (waiting for customer to book appointment)
+      // NOTE: jobStatusEnum has no 'draft' member (see shared/schema.ts); the
+      // "awaiting customer action" state for jobs is 'pending'.
+      const jobStatus = quote.requiresDeposit ? 'pending_deposit' : 'pending';
 
       // Create job with appropriate status (no scheduledDate yet - customer will book)
       const job = await storage.createJob({
@@ -1921,7 +1935,6 @@ ${aiResult.reasoning}`,
             balanceDue: balanceDue.toFixed(2),
             publicToken,
             notes: `Deposit payment required to confirm booking. Balance of R${balanceDue.toFixed(2)} due upon completion.`,
-            createdBy: undefined, // Customer-initiated
           });
 
           // Update job with deposit invoice ID and deadline
@@ -1943,10 +1956,17 @@ ${aiResult.reasoning}`,
 
       if (business && contact) {
         const baseUrl = getPublicBaseUrl();
-        const invoiceViewLink = `${baseUrl}/invoices/${depositInvoice.id}/view?token=${depositInvoice.publicToken}`;
 
         // Build notification based on deposit requirement
         if (quote.requiresDeposit && depositInvoice) {
+          // depositInvoice only exists on the deposit path, so the view link is
+          // built here rather than above.
+          const invoiceViewLink = `${baseUrl}/invoices/${depositInvoice.id}/view?token=${depositInvoice.publicToken}`;
+          // dueDate is nullable on the invoices table; it is always set on the
+          // deposit path above, so this only satisfies the type checker.
+          const depositDueDateLabel = depositInvoice.dueDate
+            ? new Date(depositInvoice.dueDate).toLocaleDateString('en-ZA')
+            : '';
           // Send deposit invoice to customer
           const { getDepositInvoiceSentTemplate } = await import('./email-templates');
           const emailContent = getDepositInvoiceSentTemplate({
@@ -1956,7 +1976,7 @@ ${aiResult.reasoning}`,
             invoiceNumber: depositInvoice.invoiceNumber,
             depositAmount: `R${depositAmount.toFixed(2)}`,
             jobNumber: job.jobNumber,
-            depositDeadline: new Date(depositInvoice.dueDate).toLocaleDateString('en-ZA'),
+            depositDeadline: depositDueDateLabel,
             invoiceViewLink,
             businessPhone: business.phone || '',
             businessEmail: business.email || '',
@@ -1979,7 +1999,7 @@ ${aiResult.reasoning}`,
           await sendWhatsAppNotification({
             business,
             contact,
-            messageBody: `Thank you for accepting the quote! Please pay the deposit of R${depositAmount.toFixed(2)} by ${new Date(depositInvoice.dueDate).toLocaleDateString('en-ZA')} to confirm your booking: ${invoiceViewLink}\n\n- ${business.businessName}`,
+            messageBody: `Thank you for accepting the quote! Please pay the deposit of R${depositAmount.toFixed(2)} by ${depositDueDateLabel} to confirm your booking: ${invoiceViewLink}\n\n- ${business.businessName}`,
             templateName: 'deposit_invoice_sent',
             relatedType: 'invoice',
             relatedId: depositInvoice.id,
@@ -1997,10 +2017,10 @@ ${aiResult.reasoning}`,
               <ul>
                 <li>Invoice: ${depositInvoice.invoiceNumber}</li>
                 <li>Amount: R${depositAmount.toFixed(2)}</li>
-                <li>Due: ${new Date(depositInvoice.dueDate).toLocaleDateString('en-ZA')}</li>
+                <li>Due: ${depositDueDateLabel}</li>
                 <li>Job: ${job.jobNumber} (Status: Pending Deposit)</li>
               </ul>`,
-            bodyText: `Quote Accepted!\n\n${contact.fullName} has accepted quote ${quote.quoteNumber}.\n\nDeposit Invoice Sent:\n- Invoice: ${depositInvoice.invoiceNumber}\n- Amount: R${depositAmount.toFixed(2)}\n- Due: ${new Date(depositInvoice.dueDate).toLocaleDateString('en-ZA')}\n- Job: ${job.jobNumber} (Status: Pending Deposit)`,
+            bodyText: `Quote Accepted!\n\n${contact.fullName} has accepted quote ${quote.quoteNumber}.\n\nDeposit Invoice Sent:\n- Invoice: ${depositInvoice.invoiceNumber}\n- Amount: R${depositAmount.toFixed(2)}\n- Due: ${depositDueDateLabel}\n- Job: ${job.jobNumber} (Status: Pending Deposit)`,
             status: 'pending',
             relatedType: 'job',
             relatedId: job.id,
@@ -2035,8 +2055,10 @@ ${aiResult.reasoning}`,
       }
 
       // Log activity: quote_accepted
+      // Uses quote.businessId (identical value, non-null) because `business`
+      // is only in scope inside the notification block above.
       await ActivityLogger.quoteAccepted(
-        business.id,
+        quote.businessId,
         quote.id,
         quote.contactId,
         req.ip
@@ -2898,7 +2920,7 @@ ${aiResult.reasoning}`,
           const sectionOrder = ['hero', 'services', 'about', 'testimonials', 'contact'];
           return (sectionOrder.indexOf(a.section) || 999) - (sectionOrder.indexOf(b.section) || 999);
         }
-        return a.displayOrder - b.displayOrder;
+        return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
       });
 
       res.json(merged);
@@ -3422,7 +3444,6 @@ ${aiResult.reasoning}`,
         balanceDue: balanceDue.toFixed(2),
         publicToken,
         notes: `Deposit payment required to confirm booking for ${job.title}. Balance of R${balanceDue.toFixed(2)} due upon completion.`,
-        createdBy: req.user!.id,
       });
 
       // Update job with deposit invoice reference
@@ -4319,7 +4340,7 @@ ${aiResult.reasoning}`,
       });
 
       // Process queue immediately for testing
-      await processWhatsAppQueue(business.id);
+      await processWhatsAppQueue(businessId);
 
       res.json({
         success: true,
@@ -4536,9 +4557,10 @@ ${aiResult.reasoning}`,
         return res.status(400).json({ error: 'Missing session ID' });
       }
 
-      // Find session to get business and verify signature
-      const sessions = await storage.getAllWhatsAppSessions();
-      const session = sessions.find(s => s.sessionId === sessionId);
+      // Find session to get business and verify signature.
+      // getAllWhatsAppSessions() does not exist on the storage layer; this is
+      // the equivalent direct lookup (session_id is unique).
+      const session = await storage.getWhatsAppSessionBySessionId(sessionId);
 
       if (!session) {
         console.error('❌ [WaSender Webhook] Session not found:', sessionId);
@@ -4866,7 +4888,8 @@ ${aiResult.reasoning}`,
         .reduce((sum, i) => sum + getAmountForCalculation(i), 0);
 
       // Amount Lost in Pipeline: Total quote value minus total invoice value
-      const quotesValue = quotes.reduce((sum, q) => sum + parseFloat(q.amount || 0), 0);
+      // quotes has no `amount` column; the value column is totalAmount.
+      const quotesValue = quotes.reduce((sum, q) => sum + parseFloat(q.totalAmount || '0'), 0);
       const invoicesValue = invoices
         .filter(i => i.invoiceType !== "deposit")
         .reduce((sum, i) => sum + parseFloat(i.totalAmount), 0);
@@ -5141,19 +5164,12 @@ ${aiResult.reasoning}`,
       const jobMap = new Map(jobs.filter(Boolean).map(j => [j!.id, j!]));
       const invoiceMap = new Map(invoices.filter(Boolean).map(i => [i!.id, i!]));
 
-      // Fetch service names for quotes and jobs
-      const serviceIds = new Set<string>();
-      for (const quote of quotes.filter(Boolean)) {
-        if (quote!.serviceId) serviceIds.add(quote!.serviceId);
-      }
-      for (const job of jobs.filter(Boolean)) {
-        if (job!.serviceId) serviceIds.add(job!.serviceId);
-      }
-
-      const services = await Promise.all(
-        Array.from(serviceIds).map(id => storage.getService(id, businessId).catch(() => null))
-      );
-      const serviceMap = new Map(services.filter(Boolean).map(s => [s!.id, s!]));
+      // NOTE: this block previously tried to resolve service names via
+      // `quote.serviceId` / `job.serviceId`, but neither the quotes nor the
+      // jobs table has a serviceId column (the link lives on quote_items /
+      // job_items). The lookup therefore never populated anything and
+      // `serviceName` below always fell through to the activity.changes
+      // fallback. The dead lookup was removed; the fallback is unchanged.
 
       // Enrich activities with related data
       const enrichedActivities = recentActivities.map(activity => {
@@ -5161,16 +5177,13 @@ ${aiResult.reasoning}`,
         let quote = null;
         let job = null;
         let invoice = null;
-        let service = null;
 
         if (activity.entityId) {
           if (activity.entityType === 'quote') {
             quote = quoteMap.get(activity.entityId);
-            if (quote?.serviceId) service = serviceMap.get(quote.serviceId);
           }
           if (activity.entityType === 'job') {
             job = jobMap.get(activity.entityId);
-            if (job?.serviceId) service = serviceMap.get(job.serviceId);
           }
           if (activity.entityType === 'invoice') {
             invoice = invoiceMap.get(activity.entityId);
@@ -5190,7 +5203,7 @@ ${aiResult.reasoning}`,
           invoiceNumber: invoice?.invoiceNumber || null,
           invoiceAmount: invoice?.totalAmount || null,
           invoiceStatus: invoice?.status || null,
-          serviceName: service?.name || (activity.changes as any)?.serviceName || (activity.changes as any)?.services?.[0] || null,
+          serviceName: (activity.changes as any)?.serviceName || (activity.changes as any)?.services?.[0] || null,
         };
       });
 
@@ -5497,7 +5510,8 @@ ${aiResult.reasoning}`,
         taxAmount: (aiResult.suggestedPrice * 0.15).toFixed(2), // 15% VAT
         discountAmount: "0",
         totalAmount: (aiResult.suggestedPrice * 1.15).toFixed(2),
-        notes: `AI-Generated Quote\n\n${aiResult.reasoning}\n\nConfidence: ${(aiResult.confidence * 100).toFixed(0)}%\n\nDistance: ${aiResult.distanceKm?.toFixed(1) ?? 'N/A'} km`,
+        notes: `AI-Generated Quote\n\n${aiResult.reasoning}\n\nConfidence: ${(aiResult.confidence * 100).toFixed(0)}%\n\nDistance: N/A km`, // QuoteGenerationResult carries no distanceKm and this
+        // route performs no geocoding, so this always rendered "N/A".
         createdBy: req.user!.id,
       });
 
@@ -5518,7 +5532,7 @@ ${aiResult.reasoning}`,
       });
 
       // Update quote with version
-      await storage.updateQuote(quote.id, business.id, {
+      await storage.updateQuote(quote.id, businessId, {
         latestVersionId: version.id,
       });
 
@@ -5768,7 +5782,7 @@ ${aiResult.reasoning}`,
 
       if (req.query.status) {
         const statusList = (req.query.status as string).split(',');
-        quotes = quotes.filter(q => statusList.includes(q.status));
+        quotes = quotes.filter(q => q.status !== null && statusList.includes(q.status));
       }
       if (req.query.contactId) {
         quotes = quotes.filter(q => q.contactId === req.query.contactId);
@@ -5885,7 +5899,7 @@ ${aiResult.reasoning}`,
       }
 
       // Only create version if status is ai_quote or sent (NOT draft)
-      const shouldCreateVersion = ['ai_quote', 'sent'].includes(originalQuote.status);
+      const shouldCreateVersion = originalQuote.status !== null && ['ai_quote', 'sent'].includes(originalQuote.status);
 
       if (updatedQuote && items && shouldCreateVersion) {
         const latestVersion = await storage.getLatestQuoteVersion(quoteId);
@@ -6080,7 +6094,7 @@ ${aiResult.reasoning}`,
 
       // If creating from a quote, get quote details
       let quoteData = null;
-      let quoteItems = [];
+      let quoteItems: Awaited<ReturnType<typeof storage.getQuoteItemsByQuoteId>> = [];
       if (data.quoteId) {
         quoteData = await storage.getQuote(data.quoteId, businessId);
         if (quoteData) {
@@ -6161,7 +6175,6 @@ ${aiResult.reasoning}`,
               balanceDue: balanceDue.toFixed(2),
               publicToken,
               notes: `Deposit payment required to confirm booking. Balance of R${balanceDue.toFixed(2)} due upon completion.`,
-              createdBy: undefined,
             });
 
             depositInvoiceId = depositInvoice.id;
@@ -6314,7 +6327,7 @@ ${aiResult.reasoning}`,
 
       if (req.query.status) {
         const statusList = (req.query.status as string).split(',');
-        jobs = jobs.filter(j => statusList.includes(j.status));
+        jobs = jobs.filter(j => j.status !== null && statusList.includes(j.status));
       }
       if (req.query.contactId) {
         jobs = jobs.filter(j => j.contactId === req.query.contactId);
@@ -6498,7 +6511,10 @@ ${aiResult.reasoning}`,
 
       // Get business settings for default payment due days
       const business = await storage.getBusiness(req.user!.businessId!);
-      const defaultDueDays = business?.defaultPaymentDueDays || 30;
+      if (!business) {
+        return res.status(404).json({ message: "Business not found" });
+      }
+      const defaultDueDays = business.defaultPaymentDueDays || 30;
 
       // Set due date based on business settings
       const dueDate = new Date();
@@ -6562,6 +6578,10 @@ ${aiResult.reasoning}`,
           });
         }
       }
+
+      // The response below returns the invoice with its line items; read them
+      // back after they have been created.
+      const invoiceItems = await storage.getInvoiceItemsByInvoiceId(invoice.id);
 
       // Queue business owner notification email
       await storage.createEmailQueueItem({
@@ -6846,7 +6866,9 @@ ${aiResult.reasoning}`,
           const paidInvoices = invoices.filter(i => i.status === "paid" && i.paidAt && i.createdAt);
           if (paidInvoices.length === 0) return 0;
           const totalDays = paidInvoices.reduce((sum, i) => {
-            const created = new Date(i.createdAt);
+            // The filter above already guarantees createdAt is set; the
+            // non-null assertion mirrors the existing one on paidAt below.
+            const created = new Date(i.createdAt!);
             const paid = new Date(i.paidAt!);
             return sum + Math.floor((paid.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
           }, 0);
@@ -6889,7 +6911,7 @@ ${aiResult.reasoning}`,
 
       if (req.query.status) {
         const statusList = (req.query.status as string).split(',');
-        invoices = invoices.filter(i => statusList.includes(i.status));
+        invoices = invoices.filter(i => i.status !== null && statusList.includes(i.status));
       }
       if (req.query.contactId) {
         invoices = invoices.filter(i => i.contactId === req.query.contactId);
@@ -6962,6 +6984,10 @@ ${aiResult.reasoning}`,
         ...validatedData,
         paidAt: validatedData.status === "paid" ? new Date() : validatedData.paidAt,
       });
+
+      if (!updated) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
 
       // Convert customer to past_customer when invoice is paid
       if (updated.status === "paid" && existingInvoice.status !== "paid") {
@@ -7054,9 +7080,11 @@ ${aiResult.reasoning}`,
       await processEmailQueue(storage, businessId);
 
       // Update invoice status to sent
+      // NOTE: the invoices table has no sentAt column (only quotes has one),
+      // so it is not set here. Drizzle already ignored the unknown key, so
+      // this changes no runtime behaviour.
       const updated = await storage.updateInvoice(req.params.id, req.user!.businessId!, {
         status: "sent",
-        sentAt: new Date(),
       });
 
       // Log activity: invoice_sent
@@ -7294,7 +7322,7 @@ This is an automated reminder. If you have already made payment, please disregar
     <div style="text-align: right;">
       <div class="invoice-title">INVOICE</div>
       <div><span class="info-label">Invoice #:</span> ${invoice.invoiceNumber}</div>
-      <div><span class="info-label">Date:</span> ${new Date(invoice.createdAt).toLocaleDateString()}</div>
+      <div><span class="info-label">Date:</span> ${invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString() : ''}</div>
       ${invoice.dueDate ? `<div><span class="info-label">Due Date:</span> ${new Date(invoice.dueDate).toLocaleDateString()}</div>` : ''}
     </div>
   </div>
@@ -7320,7 +7348,7 @@ This is an automated reminder. If you have already made payment, please disregar
       ${items.map(item => `
         <tr>
           <td>${item.description}</td>
-          <td class="text-right">${parseFloat(item.quantity).toFixed(2)}</td>
+          <td class="text-right">${parseFloat(item.quantity ?? '1').toFixed(2)}</td>
           <td class="text-right">R ${parseFloat(item.unitPrice).toFixed(2)}</td>
           <td class="text-right">R ${parseFloat(item.lineTotal).toFixed(2)}</td>
         </tr>
