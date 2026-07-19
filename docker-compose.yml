@@ -1,0 +1,106 @@
+# Local development stack: the app plus its database.
+#
+#   cp .env.example .env      # then edit it
+#   docker compose up --build
+#   docker compose exec app npm run db:push    # first run only
+#   docker compose exec app npm run db:seed    # optional demo data
+#
+# Then open http://localhost:5000
+#
+# For production (Coolify/Hetzner) see DEPLOY.md — there the database is
+# usually a managed service or a separate Coolify resource, not this container.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-servicetemplate}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      # Exposed so you can inspect the database with a local client.
+      # Remove this in production.
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      # The app must not start before Postgres can accept connections.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-servicetemplate}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      args:
+        # VITE_* are compile-time. Change any of these and you must rebuild:
+        #   docker compose up --build
+        VITE_SITE_NAME: ${VITE_SITE_NAME:-Your Business}
+        VITE_SITE_TAGLINE: ${VITE_SITE_TAGLINE:-Book professional services online in minutes.}
+        VITE_PUBLIC_BASE_URL: ${VITE_PUBLIC_BASE_URL:-http://localhost:5000}
+        VITE_LOGO_URL: ${VITE_LOGO_URL:-}
+        VITE_CONTACT_EMAIL: ${VITE_CONTACT_EMAIL:-}
+        VITE_CONTACT_PHONE: ${VITE_CONTACT_PHONE:-}
+        VITE_CURRENCY_SYMBOL: ${VITE_CURRENCY_SYMBOL:-R}
+        VITE_CURRENCY_CODE: ${VITE_CURRENCY_CODE:-ZAR}
+        VITE_COUNTRY_CODE: ${VITE_COUNTRY_CODE:-ZA}
+        VITE_COUNTRY_NAME: ${VITE_COUNTRY_NAME:-South Africa}
+        VITE_BOOKING_MODE: ${VITE_BOOKING_MODE:-quote_first}
+        VITE_ENABLE_INVOICING: ${VITE_ENABLE_INVOICING:-true}
+        VITE_ENABLE_DEPOSITS: ${VITE_ENABLE_DEPOSITS:-false}
+        VITE_ENABLE_WHATSAPP: ${VITE_ENABLE_WHATSAPP:-false}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      # Points at the db service above, not localhost.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-servicetemplate}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5000}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set in .env}
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      BUSINESS_ID: ${BUSINESS_ID:-}
+
+      BOOKING_MODE: ${BOOKING_MODE:-quote_first}
+      ENABLE_INVOICING: ${ENABLE_INVOICING:-true}
+      ENABLE_DEPOSITS: ${ENABLE_DEPOSITS:-false}
+      ENABLE_AI_QUOTING: ${ENABLE_AI_QUOTING:-true}
+      ENABLE_WHATSAPP: ${ENABLE_WHATSAPP:-false}
+      ENABLE_GOOGLE_CALENDAR: ${ENABLE_GOOGLE_CALENDAR:-false}
+      ENABLE_SCHEDULER: ${ENABLE_SCHEDULER:-true}
+      SCHEDULER_TIMEZONE: ${SCHEDULER_TIMEZONE:-Africa/Johannesburg}
+
+      # Optional integrations — all blank by default. The app runs without them.
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      GOOGLE_CALENDAR_ID: ${GOOGLE_CALENDAR_ID:-}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${GOOGLE_SERVICE_ACCOUNT_JSON:-}
+      PAYFAST_MODE: ${PAYFAST_MODE:-sandbox}
+      PAYFAST_SANDBOX_MERCHANT_ID: ${PAYFAST_SANDBOX_MERCHANT_ID:-}
+      PAYFAST_SANDBOX_MERCHANT_KEY: ${PAYFAST_SANDBOX_MERCHANT_KEY:-}
+      PAYFAST_SANDBOX_PASSPHRASE: ${PAYFAST_SANDBOX_PASSPHRASE:-}
+      PAYFAST_PROD_MERCHANT_ID: ${PAYFAST_PROD_MERCHANT_ID:-}
+      PAYFAST_PROD_MERCHANT_KEY: ${PAYFAST_PROD_MERCHANT_KEY:-}
+      PAYFAST_PROD_PASSPHRASE: ${PAYFAST_PROD_PASSPHRASE:-}
+      WASENDER_PERSONAL_ACCESS_TOKEN: ${WASENDER_PERSONAL_ACCESS_TOKEN:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_WHATSAPP_NUMBER: ${TWILIO_WHATSAPP_NUMBER:-}
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    volumes:
+      # Uploaded images must outlive the container.
+      - uploads:/app/uploads
+
+volumes:
+  db_data:
+  uploads:
