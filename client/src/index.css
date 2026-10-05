@@ -344,7 +344,9 @@
   --chart-4: 43 96% 42%;
   --chart-5: 27 87% 48%;
 
-  --font-sans: Open Sans, sans-serif;
+  --font-sans: Inter Tight, sans-serif;
+  /* Display face: hero, section headings, oversized numerals. */
+  --font-display: Bricolage Grotesque, Inter Tight, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: .5rem; /* 8px */

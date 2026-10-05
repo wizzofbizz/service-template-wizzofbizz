@@ -6,10 +6,12 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Only the family actually referenced by --font-sans (client/src/index.css).
-         Serif and mono resolve to system fonts. To rebrand typography, change the
-         family here and the matching --font-* variable in index.css. -->
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <!-- Two families, both grotesques so the page reads as one voice at two volumes:
+         Bricolage Grotesque is the display face (hero, section headings, numerals) and
+         Inter Tight is the body face. Referenced by --font-display / --font-sans in
+         client/src/index.css. To rebrand typography, change the families here and the
+         matching --font-* variables. Serif and mono resolve to system fonts. -->
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter+Tight:ital,wght@0,300..700;1,300..700&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>
